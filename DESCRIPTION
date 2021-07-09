@@ -1,0 +1,11 @@
+Package: influential_sets
+Title: Sensitivity to influential sets
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Nikolas", family = "Kuschnig", role = c("aut", "cre"), email = "nikolas.kuschnig@wu.ac.at", comment = c(ORCID = "0000-0002-6642-2543"))
+Description: Compute stuff.
+License: GPL3
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
