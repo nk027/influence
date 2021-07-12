@@ -1,10 +1,4 @@
 
-rank_influence <- function(x, lambda) {
-  value <- lambda(x)
-  order <- order(value, decreasing = FALSE, method = "radix")
-  cbind("value" = value, "order" = order)
-}
-
 mdl_to_mat <- function(x) {
   if(inherits(x, "lm")) {
     return(lm_to_mat(x))
@@ -45,12 +39,7 @@ iv_to_mat <- function(x) {
   return(list("y" = y, "X" = as.matrix(X), "Z" = as.matrix(Z)))
 }
 
-# Update inverse using the Sherman-Morrison formula
-sherman_morrison <- function(XXi, X_rm) {
-  XXi + (XXi %*% tcrossprod(X_rm) %*% XXi) /
-    as.numeric(1 - crossprod(X_rm, XXi) %*% X_rm)
-}
-
+# Update inverse
 update_inv <- function(XX_inv, X_rm) {
   XX_inv + (XX_inv %*% crossprod(X_rm) %*% XX_inv) /
     as.numeric(1 - X_rm %*% tcrossprod(XX_inv, X_rm))
@@ -107,4 +96,19 @@ int_check <- function(
   msg = "Please check the integer parameters.") {
 
   num_check(x, min, max, msg, fun = as.integer)
+}
+
+
+check_cluster <- function(cluster, N) {
+  if(!is.null(cluster)) {
+    cluster <- as.data.frame(cluster)
+    if(NROW(cluster) != N) {stop("Size of 'cluster' does not match the data.")}
+    if(anyNA(cluster)) {stop("No missing 'cluster' values are allowed.")}
+  }
+  return(cluster)
+}
+
+
+check_iterations <- function(N, n_max, p_max) {
+  return(min(N - 1L, n_max, floor(N * p_max)))
 }

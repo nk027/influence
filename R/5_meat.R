@@ -1,7 +1,9 @@
 
 # Adaptation of sandwich::meatCL
 veggiesCL <- function(residual, X,
-  cluster = NULL, type = c("HC0", "HC1"), ...) {
+  cluster = NULL,
+  type = c("HC0", "HC1"), # ll and LM
+  ...) {
 
   type <- match.arg(type)
 
