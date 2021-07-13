@@ -14,7 +14,10 @@ set_lambda <- function(
   f = function(x, ...) {NULL}) {
 
   # Check custom functions
-  if(!is.null(f())) {return(f)}
+  if(!is.null(f())) {
+    attr(f, "type") <- "custom"
+    return(f)
+  }
 
   # Allow choosing some predefined functions
   type <- match.arg(type)
@@ -33,8 +36,12 @@ set_lambda <- function(
         crossprod(-x[["beta_i"]][i, ] + x[["lm"]][["beta"]])
       }, numeric(1L)) * sign
     }
+    attr(f, "type") <- "BKW"
   } else {
     f <- function(x, ...) {x[[type]][, position] * sign}
+    attr(f, "type") <- type
+    attr(f, "position") <- position
+    attr(f, "sign") <- sign
   }
 
   return(f)

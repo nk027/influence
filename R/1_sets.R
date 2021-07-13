@@ -45,28 +45,31 @@ sens.lm <- function(x,
   idx <- seq.int(N)
   rm <- vector("numeric", n_max)
 
-  obs <- rank[seq.int(0L, n_max + 1L), "order"]
   out <- structure(list(
     "influence" = data.frame(
       "N" = seq.int(N, N - n_max),
-      "id" = c(obs[1L], rep(NA_integer_, n_max)),
-      "lambda" = c(rank[obs[1L], "value"], rep(NA_real_, n_max)),
-      "init_id" = obs, "init_lambda" = rank[obs, "value"]
+      "id" = c(rank[1L, "order"], rep(NA_integer_, n_max)),
+      "lambda" = c(rank[rank[1L, "order"], "value"], rep(NA_real_, n_max))
     ),
     "model" = as.data.frame(matrix(
       NA_real_, n_max + 1L, 2 + K * 2 + 3,
       dimnames = list(NULL, c("N", "sigma",
-        paste0("beta-", seq.int(K)), paste0("se-", seq.int(K)),
+        paste0("beta_", seq.int(K)), paste0("se_", seq.int(K)),
         "R2", "F", "LL")
       )
     )),
-    "meta" = NULL
+    "initial" = data.frame(
+      "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
+    ),
+    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster)
   ), class = "sensitivity")
 
   rm[1L] <- rank[1L, "order"]
   out$model[1, ] <- c(N,
     step$lm$sigma, step$lm$beta, step$lm$se,
     step$lm$r2, step$lm$fstat, step$lm$ll)
+
+  if(n_max == 1L) {return(out)}
 
 
   # Iterate ---
@@ -123,8 +126,6 @@ sens.lm <- function(x,
 
   # Wrap up ---
 
-  out$meta <- list(lambda = lambda, options = options, cluster = cluster)
-
   return(out)
 }
 
@@ -138,7 +139,7 @@ sens.ivreg <- function(x,
   # Inputs ---
 
   data <- mdl_to_mat(x)
-  if(is.null(data$Z)) {sens.lm(x, lambda, options, cluster)}
+  if(is.null(data$Z)) {return(sens.lm(x, lambda, options, cluster))}
   y <- data$y
   X <- data$X
   Z <- data$Z

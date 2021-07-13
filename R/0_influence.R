@@ -124,7 +124,7 @@ influence_lm <- function(X, y,
     }, numeric(K))
     if(K != 1) {se_i <- t(se_i)} else {se_i <- matrix(se_i)}
   } else {
-    NULL
+    se_i <- NULL
   }
 
   # t value
