@@ -1,4 +1,30 @@
 
+init <- function(x, ...) {{UseMethod("init", x)}}
+
+init.sensitivity <- function(x, id = NULL, ...) {
+
+  if(is.null(id)) { # Try to guess
+    type <- gsub("^([a-z]+).*", "\\1", attr(x$meta$lambda, "type"))
+    position <- attr(x$meta$lambda, "position")
+    id <- paste0(type, "_", position)
+  }
+
+  exact <- if(grepl("tstat", id)) { # Exact
+    x$model[[paste0("beta_", gsub(".*_([0-9]+)", "\\1", id))]] /
+      x$model[[paste0("se_", gsub(".*_([0-9]+)", "\\1", id))]]
+  } else {
+    x$model[[id]]
+  }
+  initial <- if(attr(x$meta$lambda, "sign") == -1L) { # Initial
+    cumsum(c(exact[1L], -(exact[1L] + x$initial$lambda)))
+  } else {
+    cumsum(c(exact[1L], -(exact[1L] - x$initial$lambda)))
+  }
+
+  list("initial" = initial, "exact" = exact)
+}
+
+
 print.influence <- function(x, ...) {
   cat("Influence object\n")
   print(str(x))
@@ -10,6 +36,7 @@ print.sensitivity <- function(x, ...) {
   print(str(x[c("influence", "model")]))
   invisible(x)
 }
+
 
 plot.influence <- function(x,
   type = c("beta_i", "se_i"), position,
@@ -29,17 +56,49 @@ plot.influence <- function(x,
   invisible(x)
 }
 
-plot.sensitivity <- function(x) {
+
+plot.sensitivity <- function(x,
+  type = c("influence", "path"), ...) {
+
+  type <- match.arg(type)
+  if(type == "influence") {
+    return(.plot_influence(x, ...))
+  } else if(type == "path") {
+    return(.plot_path(x, ...))
+  }
+}
+
+.plot_influence <- function(x) {
 
   masking <- vector("numeric", nrow(x$influence))
   for(i in seq_len(nrow(x$influence))) {
     masking[i] <- i -
-      sum(x$influence$id[seq(i)] %in% x$influence$init_id[seq(i)])
+      sum(x$influence$id[seq(i)] %in% x$initial$id[seq(i)])
   }
   masked <- 1L + which(diff(masking) > 0)
   plot(x$influence$lambda, type = "l",
     xlab = "Index / Number masked", ylab = "Influence")
   axis(3L, at = masked, labels = masking[masked])
+  grid()
+
+  invisible(x)
+}
+
+.plot_path <- function(x, n = 0L) {
+
+  z <- init(x)
+
+  if(n > 0L) {
+    ylim <- c(min(z$exact[seq.int(n)], z$initial[seq.int(n)]),
+      max(z$exact[seq.int(n)], z$initial[seq.int(n)]))
+    plot(z$initial[seq.int(n)], type = "l", col = "gray", lty = 2,
+      ylim = ylim, main = "Path", ylab = "Value")
+    lines(z$exact)
+  } else {
+    ylim <- c(min(z$exact, z$initial), max(z$exact, z$initial))
+    plot(z$exact, type = "l", main = "Path", ylab = "Value", ylim = ylim)
+    lines(z$initial, col = "gray", lty = 2)
+  }
   grid()
 
   invisible(x)

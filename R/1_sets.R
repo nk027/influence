@@ -10,6 +10,8 @@ sens.lm <- function(x,
 
   # Inputs ---
 
+  verbose <- isTRUE(verbose)
+
   data <- mdl_to_mat(x)
   y <- data$y
   X <- data$X
@@ -137,6 +139,8 @@ sens.ivreg <- function(x,
   verbose = TRUE) {
 
   # Inputs ---
+
+  verbose <- isTRUE(verbose)
 
   data <- mdl_to_mat(x)
   if(is.null(data$Z)) {return(sens.lm(x, lambda, options, cluster))}
