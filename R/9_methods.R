@@ -15,6 +15,8 @@ plot.influence <- function(x,
   type = c("beta_i", "se_i"), position,
   ...) {
 
+  type <- match.arg(type)
+
   if(missing(position)) {position <- seq_len(NCOL(x[[type]]))}
   n_plots <- length(position)
   boxplot(x[[type]][, position], main = "Variation after one removal")
@@ -38,6 +40,7 @@ plot.sensitivity <- function(x) {
   plot(x$influence$lambda, type = "l",
     xlab = "Index / Number masked", ylab = "Influence")
   axis(3L, at = masked, labels = masking[masked])
+  grid()
 
   invisible(x)
 }

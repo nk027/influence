@@ -176,9 +176,9 @@ sens.ivreg <- function(x,
       "init_id" = obs, "init_lambda" = rank[obs, "value"]
     ),
     "model" = as.data.frame(matrix(
-      NA_real_, n_max + 1L, 2 + K * 2 + 3,
+      NA_real_, n_max + 1L, 2 + K * 2 + 4,
       dimnames = list(NULL, c("N", "sigma",
-        paste0("beta-", seq.int(K)), paste0("se-", seq.int(K)),
+        paste0("beta_", seq.int(K)), paste0("se_", seq.int(K)),
         "R2", "F", "R2_1st", "F_1st")
       )
     )),
@@ -188,7 +188,7 @@ sens.ivreg <- function(x,
   rm[1L] <- rank[1L, "order"]
   out$model[1, ] <- c(N,
     step$lm$sigma, step$lm$beta, step$lm$se,
-    step$lm$r2, step$lm$fstat, step$r2_first, step$lm$fstat_first)
+    step$lm$r2, step$lm$fstat, step$lm$r2_first, step$lm$fstat_first)
 
 
   # Iterate ---

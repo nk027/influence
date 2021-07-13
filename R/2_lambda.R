@@ -9,8 +9,8 @@ rank_influence <- function(x, lambda) {
 set_lambda <- function(
   type = c("beta_i", "sigma_i", "se_i", "tstat_i",
     "cooksd", "dffits", "rstudent", "covratio", "BKW"),
-  sign = 1L,
   position = 1L,
+  sign = 1L,
   f = function(x, ...) {NULL}) {
 
   # Check custom functions

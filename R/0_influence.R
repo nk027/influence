@@ -129,7 +129,7 @@ influence_lm <- function(X, y,
 
   # t value
   tstat_i <- if(isTRUE(options$tstat)) {
-    matrix(beta_i / se_i)
+    matrix(beta_i / se_i, N, K)
   } else {
     NULL
   }

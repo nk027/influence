@@ -1,8 +1,7 @@
 
-set_options <- function(
+set_options <- function(...,
   p_max = NULL, n_max = NULL,
-  sm_re = 5L, fwl = 0L, fwl_re = 1e6L,
-  ...) {
+  sm_re = 5L, fwl = 0L, fwl_re = 1e6L) {
 
   out <- set_compute(...)
 
@@ -51,13 +50,13 @@ set_compute <- function(x = c("all", "some", "none"),
 
   if(!missing(hat)) {out$hat <- isTRUE(hat)}
   if(!missing(beta)) {out$beta <- isTRUE(beta)}
-  if(!missing(sigma)) {out$hat <- isTRUE(sigma)}
-  if(!missing(se)) {out$hat <- isTRUE(se)}
-  if(!missing(tstat)) {out$hat <- isTRUE(tstat)}
-  if(!missing(cooksd)) {out$hat <- isTRUE(cooksd)}
-  if(!missing(dffits)) {out$hat <- isTRUE(dffits)}
-  if(!missing(rstudent)) {out$hat <- isTRUE(rstudent)}
-  if(!missing(covratio)) {out$hat <- isTRUE(covratio)}
+  if(!missing(sigma)) {out$sigma <- isTRUE(sigma)}
+  if(!missing(se)) {out$se <- isTRUE(se)}
+  if(!missing(tstat)) {out$tstat <- isTRUE(tstat)}
+  if(!missing(cooksd)) {out$cooksd <- isTRUE(cooksd)}
+  if(!missing(dffits)) {out$dffits <- isTRUE(dffits)}
+  if(!missing(rstudent)) {out$rstudent <- isTRUE(rstudent)}
+  if(!missing(covratio)) {out$covratio <- isTRUE(covratio)}
 
   if(out$se) {out$beta <- out$sigma <- TRUE}
   if(out$tstat) {out$se <- out$beta <- out$sigma <- TRUE}
