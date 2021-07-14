@@ -40,7 +40,8 @@ influence_lm <- function(X, y,
   # Coefficients
   if(is.null(XX_inv)) {
     qr_x <- qr(X)
-    R <- qr.R(qr_x)
+    if(qr_x$rank != K) {stop("Removal resulted in loss of full rank.")}
+    R <- qr.R(qr_x)[seq.int(qr_x$rank), seq.int(qr_x$rank)]
     beta <- as.numeric(solve_cholesky(R, crossprod(X, y)))
     XX_inv <- chol2inv(R)
   } else {
@@ -294,7 +295,7 @@ influence_iv <- function(X, Z, y,
 
   # t value
   tstat_i <- if(isTRUE(options$tstat)) {
-    matrix(beta_i / se_i)
+    matrix(beta_i / se_i, N, K)
   } else {
     NULL
   }

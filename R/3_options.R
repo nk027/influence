@@ -1,7 +1,8 @@
 
 set_options <- function(...,
   p_max = NULL, n_max = NULL,
-  sm_re = 5L, fwl = 0L, fwl_re = 1e6L) {
+  sm_re = 5L, fwl = 0L, fwl_re = 1e6L,
+  adaptive = TRUE) {
 
   out <- set_compute(...)
 
@@ -24,6 +25,7 @@ set_options <- function(...,
     msg = "Choose valid indices for variables to retain after FWL.")
   out$fwl_re = int_check(fwl_re, 1L, 1e6L,
     msg = "Choose a valid step size for recalculating FWL.")
+  out$adaptive <- isTRUE(adaptive)
 
   return(out)
 }

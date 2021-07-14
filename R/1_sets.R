@@ -112,9 +112,15 @@ sens.lm <- function(x,
     rank <- rank_influence(step, lambda)
 
     # Store results
-    rm[i] <- idx[-rm][rank[1L, "order"]] # Index kept constant
+    if(options$adaptive) {
+      rm[i] <- idx[-rm][rank[1L, "order"]] # Index kept constant
+      rm_val <- rank[rank[1L, "order"], "value"]
+    } else {
+      rm[i] <- out$initial$id[i]
+      rm_val <- out$initial$lambda[i]
+    }
     out$influence$id[i] <- rm[i]
-    out$influence$lambda[i] <- rank[rank[1L, "order"], "value"]
+    out$influence$lambda[i] <- rm_val
     out$model[i, ] <- c(N - i + 1,
       step$lm$sigma, step$lm$beta, step$lm$se,
       step$lm$r2, step$lm$fstat, step$lm$ll)
@@ -127,6 +133,9 @@ sens.lm <- function(x,
 
 
   # Wrap up ---
+
+  out$model <- out$model[!is.na(out$model$N), ]
+  out$influence <- out$influence[!is.na(out$influence$id), ]
 
   return(out)
 }
@@ -176,9 +185,8 @@ sens.ivreg <- function(x,
   out <- structure(list(
     "influence" = data.frame(
       "N" = seq.int(N, N - n_max),
-      "id" = c(obs[1L], rep(NA_integer_, n_max)),
-      "lambda" = c(rank[obs[1L], "value"], rep(NA_real_, n_max)),
-      "init_id" = obs, "init_lambda" = rank[obs, "value"]
+      "id" = c(rank[1L, "order"], rep(NA_integer_, n_max)),
+      "lambda" = c(rank[rank[1L, "order"], "value"], rep(NA_real_, n_max))
     ),
     "model" = as.data.frame(matrix(
       NA_real_, n_max + 1L, 2 + K * 2 + 4,
@@ -187,7 +195,10 @@ sens.ivreg <- function(x,
         "R2", "F", "R2_1st", "F_1st")
       )
     )),
-    "meta" = NULL
+    "initial" = data.frame(
+      "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
+    ),
+    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster)
   ), class = "sensitivity")
 
   rm[1L] <- rank[1L, "order"]
@@ -215,9 +226,15 @@ sens.ivreg <- function(x,
     rank <- rank_influence(step, lambda)
 
     # Store results
-    rm[i] <- idx[-rm][rank[1L, "order"]] # Index kept constant
+    if(options$adaptive) {
+      rm[i] <- idx[-rm][rank[1L, "order"]] # Index kept constant
+      rm_val <- rank[rank[1L, "order"], "value"]
+    } else {
+      rm[i] <- out$initial$id[i]
+      rm_val <- out$initial$lambda[i]
+    }
     out$influence$id[i] <- rm[i]
-    out$influence$lambda[i] <- rank[rank[1L, "order"], "value"]
+    out$influence$lambda[i] <- rm_val
     out$model[i, ] <- c(N - i + 1,
       step$lm$sigma, step$lm$beta, step$lm$se,
       step$lm$r2, step$lm$fstat, step$lm$r2_first, step$lm$fstat_first)
@@ -231,7 +248,8 @@ sens.ivreg <- function(x,
 
   # Wrap up ---
 
-  out$meta <- list(lambda = lambda, options = options, cluster = cluster)
+  out$model <- out$model[!is.na(out$model$N), ]
+  out$influence <- out$influence[!is.na(out$influence$id), ]
 
   return(out)
 }

@@ -21,7 +21,7 @@ init.sensitivity <- function(x, id = NULL, ...) {
     cumsum(c(exact[1L], -(exact[1L] - x$initial$lambda)))
   }
 
-  list("initial" = initial, "exact" = exact)
+  list("initial" = initial, "exact" = exact, "id" = id)
 }
 
 
@@ -58,7 +58,7 @@ plot.influence <- function(x,
 
 
 plot.sensitivity <- function(x,
-  type = c("influence", "path"), ...) {
+  type = c("path", "influence"), ...) {
 
   type <- match.arg(type)
   if(type == "influence") {
@@ -79,6 +79,7 @@ plot.sensitivity <- function(x,
   plot(x$influence$lambda, type = "l",
     xlab = "Index / Number masked", ylab = "Influence")
   axis(3L, at = masked, labels = masking[masked])
+  abline(h = 0)
   grid()
 
   invisible(x)
@@ -87,19 +88,41 @@ plot.sensitivity <- function(x,
 .plot_path <- function(x, n = 0L) {
 
   z <- init(x)
+  z$exact <- z$exact[!is.nan(z$exact)]
+  z$initial <- z$initial[!is.nan(z$initial)]
+
+  N <- x$influence$N[1L]
+
+  poi <- list("exact" = c(which(diff(sign(z$exact)) != 0) + 1,
+      which(diff(abs(z$exact) > 2) != 0) + 1),
+    "initial" = c(which(diff(sign(z$initial)) != 0) + 1,
+      which(diff(abs(z$initial) > 2) != 0) + 1))
 
   if(n > 0L) {
     ylim <- c(min(z$exact[seq.int(n)], z$initial[seq.int(n)]),
       max(z$exact[seq.int(n)], z$initial[seq.int(n)]))
     plot(z$initial[seq.int(n)], type = "l", col = "gray", lty = 2,
-      ylim = ylim, main = "Path", ylab = "Value")
+      ylim = ylim, ylab = "Value", xlab = "Index / Percent")
     lines(z$exact)
+    axis_at <- axTicks(3L)
+    axis_lab <- round((seq(0, n) / N)[axTicks(3L)], 2)
+    if(any(axis_at == 0)) {axis_lab <- c(0, axis_lab)}
+    axis(3L, at = axis_at, labels = axis_lab)
   } else {
     ylim <- c(min(z$exact, z$initial), max(z$exact, z$initial))
-    plot(z$exact, type = "l", main = "Path", ylab = "Value", ylim = ylim)
+    plot(z$exact, type = "l", ylab = "Value",
+      ylim = ylim, xlab = "Index / Percent")
     lines(z$initial, col = "gray", lty = 2)
+    axis_at <- axTicks(3L)
+    axis_lab <- round((seq(0, N) / N)[axTicks(3L)], 2)
+    if(any(axis_at == 0)) {axis_lab <- c(0, axis_lab)}
+    axis(3L, at = axis_at, labels = axis_lab)
   }
   grid()
+  abline(v = poi$initial, col = "gray", lty = 2)
+  abline(v = poi$exact)
+  axis(1L, at = poi$exact, labels = TRUE)
+  abline(h = 0)
 
   invisible(x)
 }
