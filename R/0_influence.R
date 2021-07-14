@@ -84,29 +84,23 @@ influence_lm <- function(X, y,
         X[i, ] %*% XX_inv %*% X[i, ]}, numeric(1L)))
     }
   } else {
-    matrix(1, N) # Skip calculation
+    matrix(0, N) # Skip calculation
   }
 
   # DFBETA
-  beta_i <- if(isTRUE(options$beta)) {
-    if(!is.null(R)) {
-      t(t(t(-solve_cholesky(R, t(X))) *
-        ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
-    } else {
-      t(t(t(-tcrossprod(XX_inv, X)) *
-        ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
-    }
-    # sweep(-t(solve_cholesky(R, t(X))) * # Cleaner but slower
-    #   ifelse(hat == 1, 0, res / (1 - hat)), 2, beta, "+")
+  beta_i <- if(!is.null(R)) {
+    t(t(t(-solve_cholesky(R, t(X))) *
+      ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
   } else {
-    NULL
+    t(t(t(-tcrossprod(XX_inv, X)) *
+      ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
   }
 
   # Sigma when dropping observation i
   sigma_i <- if(isTRUE(options$sigma)) {
     matrix(sqrt((rss - res^2 / ifelse(hat == 1, 1, (1 - hat))) / (N - K - 1)))
   } else {
-    matrix(rep(sigma, N))
+    matrix(res^2 / (N - K) + sigma)
   }
 
   # Standard errors
@@ -124,8 +118,15 @@ influence_lm <- function(X, y,
       sqrt(diag(1 / (N - 1) * (bread_i %*% veggies_i %*% bread_i)))
     }, numeric(K))
     if(K != 1) {se_i <- t(se_i)} else {se_i <- matrix(se_i)}
-  } else {
-    se_i <- NULL
+  } else { # Ignoring the inverse
+    sigma_dbeta <- -2 * colSums(res * X) / (N - K)
+    R_x <- if(!is.null(R)) {solve_cholesky(R, t(X))} else {XX_inv %*% t(X)}
+    veggies_i <- (-R_x^2) * sigma^2 +
+      outer(diag(XX_inv), (sigma_i[, 1] - sigma))
+    sigma_d <- colSums(sigma_dbeta * (t(beta_i) - beta) + sigma_i[, 1])
+    bread_i <- veggies_i + outer(diag(XX_inv),
+      colSums(sigma_dbeta * (t(beta_i) - beta)))
+    se_i <- -t(0.5 * bread_i / sqrt(diag(vcov))) + se
   }
 
   # t value
@@ -229,28 +230,37 @@ influence_iv <- function(X, Z, y,
 
   # Influence quantities ---
 
-  # Diagonal of hat matrices ( X(X'PX)⁻¹X', R(X'PX)⁻¹X', (X'PX)⁻¹R' )
-  Ai_X <- qr.solve(qr_a, t(X))
-  Ai_Xr <- qr.solve(qr_a, t(X_resid))
-  h_X <- vapply(idx, function(i) {X[i, ] %*% Ai_X[, i]}, numeric(1L))
-  h_XrX <- vapply(idx, function(i) {X_resid[i, ] %*% Ai_X[, i]}, numeric(1L))
-  h_XrXr <- vapply(idx, function(i) {X_resid[i, ] %*% Ai_Xr[, i]}, numeric(1L))
-  h_Pz <- rowSums(qr.Q(qr_z)^2) # Diagonal of the projection matrix P
-
-  hat <- if(options$hat) {
-    cbind("stage1" = h_Pz, "stage2" = rowSums(qr.Q(qr_x)^2), "projection" = h_X)
+  if(options$beta) {
+    # Diagonal of hat matrices ( X(X'PX)⁻¹X', R(X'PX)⁻¹X', (X'PX)⁻¹R' )
+    Ai_X <- qr.solve(qr_a, t(X))
+    Ai_Xr <- qr.solve(qr_a, t(X_resid))
+    h_X <- vapply(idx, function(i) {X[i, ] %*% Ai_X[, i]}, numeric(1L))
+    h_XrX <- vapply(idx, function(i) {X_resid[i, ] %*% Ai_X[, i]}, numeric(1L))
+    h_XrXr <- vapply(idx, function(i) {X_resid[i, ] %*% Ai_Xr[, i]}, numeric(1L))
+    h_Pz <- rowSums(qr.Q(qr_z)^2) # Diagonal of the projection matrix P
+    # DFBETA, loosely following Phillips (1977)
+    denom <- (1 - h_Pz + h_XrXr)
+    delta <- 1 - h_X + (h_XrX^2) / denom
+    h <- ((1 - h_X) * X_resid + (h_XrX) * X) / (denom * delta)
+    j <- ((h_XrX * X_resid) / denom - X) / delta
+    g <- h * as.numeric(res_z - res_p) + (h + j) * res
+    dfb <- t(qr.solve(qr_a, t(g)))
+    beta_i <- t(t(dfb) + beta)
   } else {
-    matrix(1, N, 3, dimnames = list(NULL, c("stage1", "stage2", "projection")))
+    dfb <- t(-solve(qr(crossprod(Z, X)), t(Z * res)))
+    beta_i <- t(t(dfb) + beta)
   }
 
-  # DFBETA, loosely following Phillips (1977)
-  denom <- (1 - h_Pz + h_XrXr)
-  delta <- 1 - h_X + (h_XrX^2) / denom
-  h <- ((1 - h_X) * X_resid + (h_XrX) * X) / (denom * delta)
-  j <- ((h_XrX * X_resid) / denom - X) / delta
-  g <- h * as.numeric(res_z - res_p) + (h + j) * res
-  dfb <- t(qr.solve(qr_a, t(g)))
-  beta_i <- t(t(dfb) + beta)
+  hat <- if(options$hat) {
+    if(!exists("h_Pz") || !exists("h_X")) {
+      h_Pz <- rowSums(qr.Q(qr_z)^2)
+      Ai_X <- qr.solve(qr_a, t(X))
+      h_X <- vapply(idx, function(i) {X[i, ] %*% Ai_X[, i]}, numeric(1L))
+    }
+    cbind("stage1" = h_Pz, "stage2" = rowSums(qr.Q(qr_x)^2), "projection" = h_X)
+  } else {
+    matrix(0, N, 3, dimnames = list(NULL, c("stage1", "stage2", "projection")))
+  }
 
   # Sigma when dropping observation i
   if(options$sigma) {
