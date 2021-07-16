@@ -62,12 +62,19 @@ solve_cholesky <- function(R, b) {
 
 
 # Update data using Frisch-Waugh-Lovell theorem
-frisch_waugh_lovell <- function(X, y, variables) {
+update_fwl <- function(X, y, variables, rm = NULL) {
   if(!any(variables == 0)) {
-    Q_fwl <- qr.Q(qr(X[, -variables, drop = FALSE]))
-    y <- y - Q_fwl %*% crossprod(Q_fwl, y)
-    X <- X[, variables, drop = FALSE] - Q_fwl %*%
-      crossprod(Q_fwl, X[, variables, drop = FALSE])
+    if(is.null(rm)) {
+      Q_fwl <- qr.Q(qr(X[, -variables, drop = FALSE]))
+      y <- y - Q_fwl %*% crossprod(Q_fwl, y)
+      X <- X[, variables, drop = FALSE] - Q_fwl %*%
+        crossprod(Q_fwl, X[, variables, drop = FALSE])
+    } else {
+      Q_fwl <- qr.Q(qr(X[-rm, -variables, drop = FALSE]))
+      y[-rm] <- y[-rm] - Q_fwl %*% crossprod(Q_fwl, y[-rm])
+      X[-rm, ] <- X[-rm, variables, drop = FALSE] - Q_fwl %*%
+        crossprod(Q_fwl, X[-rm, variables, drop = FALSE])
+    }
   }
   return(list("y" = y, "X" = X))
 }

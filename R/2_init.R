@@ -1,115 +1,85 @@
 
 init <- function(x, ...) {{UseMethod("init", x)}}
 
-init.influence <- function(x, lambda = set_lambda(), id = NULL, ...) {
 
-  rank <- rank_influence(x, lambda)
+init.influence <- function(x, lambda = set_lambda(), start = NULL) {
 
-  # Rebuild a plain version of the influence object
-  out <- sens_dummy(x, rank, lambda)
-  out$model[1, ] <- c(NROW(x$hat), x$lm$sigma, x$lm$beta, x$lm$se)
+  rank <- rank_influence(x, lambda = lambda)
+  out <- create_object(x, rank = rank, lambda = lambda)
 
-  init.sensitivity(out, id = id, ...)
+  init.sensitivity(out, id = id, start = start)
 }
 
-init.sensitivity <- function(x, id = NULL, ...) {
+init.sensitivity <- function(x, start = NULL) {
 
-  if(is.null(id)) { # Try to guess
-    type <- gsub("^([a-z]+).*", "\\1", attr(x$meta$lambda, "type"))
-    position <- attr(x$meta$lambda, "position")
-    id <- paste0(type, "_", position)
-  }
-  if(!any(grepl(type, names(x$model)))) {
-    stop("Type not supported for automatic calculation.")
+  id <- check_id(NULL, lambda = x$meta$lambda)
+  exact <- get_exact(x, id)
+
+  if(is.null(start)) {
+    if(all(!grepl(id, names(x$model))) && !grepl("tstat_[0-9]+", id)) {
+      warning("Cannot determine starting value for the requested 'id' ",
+       "automatically. Consider providing a value via 'start'.")
+      start <- 0
+    } else {
+      start <- exact[1L]
+    }
   }
 
-  exact <- if(grepl("tstat", id)) { # Exact
-    x$model[[paste0("beta_", gsub(".*_([0-9]+)", "\\1", id))]] /
-      x$model[[paste0("se_", gsub(".*_([0-9]+)", "\\1", id))]]
+  initial <- if(attr(x$meta$lambda, "sign") == -1L) { # Initial approximation
+    cumsum(c(start, -(start + x$initial$lambda)))
   } else {
-    x$model[[id]]
-  }
-  initial <- if(attr(x$meta$lambda, "sign") == -1L) { # Initial
-    cumsum(c(exact[1L], -(exact[1L] + x$initial$lambda)))
-  } else {
-    cumsum(c(exact[1L], -(exact[1L] - x$initial$lambda)))
+    cumsum(c(start, -(start - x$initial$lambda)))
   }
 
   list("initial" = initial, "exact" = exact, "id" = id)
 }
 
 
-target <- function(x, ...) {{UseMethod("target", x)}}
+create_object <- function(x, rank, lambda) {
 
-target.influence <- function(x,
-  lambda = set_lambda(), id = NULL,
-  target = NULL, n_upper = NULL, ...) {
+  is_lm <- isTRUE(x$meta$class == "lm")
+  K <- length(x$model$beta)
 
-  if(is.null(target)) {
-    target <- attr(lambda, "target")
-  } else {
-    target <- num_check(target, -Inf, Inf, msg = "Please check the target.")
-  }
-
-  # How many to try removing?
-  initial <- init(x, lambda = lambda)
-  N <- length(initial$initial)
-  if(is.null(n_upper)) {
-    n_upper <- which(initial$initial <= target)[1L] - 1L
-    if(is.na(n_upper)) {stop("Target not within the approximation's reach.")}
-  } else {
-    n_upper <- num_check(n_upper, 1L, N, msg = "Choose a valid maximum.")
-  }
-  n_lower <- 0L
-  # Which ones to remove?
-  rank <- rank_influence(x, lambda)
-  rm <- rank[, "order"]
-
-  # First step
-  re <- re_infl(x, rm[seq.int(n_upper)])
-  re_initial <- init(re, lambda)
-  if(re_initial$exact[1L] > target) {
-    stop("Upper bound not sufficient to achieve the target change.")
-  }
-  while(n_lower < n_upper) {
-    n_consider <- floor((n_lower + n_upper) / 2)
-    re <- re_infl(x, rm[seq.int(n_consider)])
-    if(init(re, lambda)$exact[1L] > target) {
-      n_lower <- n_consider
-    } else {
-      n_upper <- n_consider - 1L
-    }
-  }
-
-  return(list(
-    "n_removed" = n_consider, "p_removed" = n_consider / N, "target" = target,
-    "id" = rm, "lambda" = rank[, "value"], "result" = re
-  ))
-}
-
-re_infl <- function(x, rm) {
-  if(x$meta$class == "lm") {
-    re <- influence_lm(x$meta$X[-rm, ], x$meta$y[-rm],
-      options = set_options("none"), cluster = x$meta$cluster[-rm, ])
-  } else {
-    re <- influence_iv(x$meta$X[-rm, ], x$meta$Z[-rm, ], x$meta$y[-rm],
-      options = set_options("none"), cluster = x$meta$cluster[-rm, ])
-  }
-  return(re)
-}
-
-sens_dummy <- function(x, rank, lambda) {
-  list(
+  out <- list(
+    "model" = as.data.frame(matrix(NA_real_,
+      1L, 2 + length(x$model$beta) * 2 + if(is_lm) {3} else {4},
+      dimnames = list(NULL, c("N", "sigma",
+        paste0("beta_", seq.int(K)), paste0("se_", seq.int(K)),
+        if(is_lm) {c("R2", "F", "LL")} else {c("R2", "F", "R2_1st", "F_1st")}))
+    )),
     "initial" = data.frame(
       "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
     ),
-    "model" = as.data.frame(matrix(
-      NA_real_, 1L, 2 + length(x$lm$beta) * 2,
-      dimnames = list(NULL, c("N", "sigma",
-        paste0("beta_", seq.int(length(x$lm$beta))),
-        paste0("se_", seq.int(length(x$lm$beta))))
-      )
-    )),
     "meta" = list("lambda" = lambda)
   )
+  out$model[1, ] <- c(NROW(x$hat), x$model$sigma, x$model$beta, x$model$se,
+    if(is_lm) {
+      c(x$model$r2, x$model$fstat, x$model$ll)
+    } else {
+      c(x$model$r2, x$model$fstat, x$model$r2_first, x$model$fstat_first)
+    })
+
+  return(out)
+}
+
+
+check_id <- function(id = NULL, lambda) {
+  if(is.null(id)) {
+    type <- gsub("^([a-z]+).*", "\\1", attr(lambda, "type"))
+    if(type == "custom") {return("custom")}
+    position <- attr(lambda, "position")
+    return(paste0(type, "_", position))
+  }
+  if(!is.character(id)) {stop("Please provide a character scalar.")}
+  return(id)
+}
+
+
+get_exact <- function(x, id) {
+  if(grepl("tstat", id)) {
+    x$model[[paste0("beta_", gsub(".*_([0-9]+)", "\\1", id))]] /
+      x$model[[paste0("se_", gsub(".*_([0-9]+)", "\\1", id))]]
+  } else {
+    x$model[[id]] # Potentially NULL
+  }
 }

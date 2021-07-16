@@ -1,49 +1,9 @@
 
-init <- function(x, ...) {{UseMethod("init", x)}}
-
-init.influence <- function(x, lambda = set_lambda(), id = NULL, ...) {
-
-  rank <- rank_influence(x, lambda)
-
-  # Rebuild a plain version of the influence object
-  out <- sens_dummy(x, rank, lambda)
-  out$model[1, ] <- c(NROW(x$hat), x$lm$sigma, x$lm$beta, x$lm$se)
-
-  init.sensitivity(out, id = id, ...)
-}
-
-init.sensitivity <- function(x, id = NULL, ...) {
-
-  if(is.null(id)) { # Try to guess
-    type <- gsub("^([a-z]+).*", "\\1", attr(x$meta$lambda, "type"))
-    position <- attr(x$meta$lambda, "position")
-    id <- paste0(type, "_", position)
-  }
-  if(!any(grepl(type, names(x$model)))) {
-    stop("Type not supported for automatic calculation.")
-  }
-
-  exact <- if(grepl("tstat", id)) { # Exact
-    x$model[[paste0("beta_", gsub(".*_([0-9]+)", "\\1", id))]] /
-      x$model[[paste0("se_", gsub(".*_([0-9]+)", "\\1", id))]]
-  } else {
-    x$model[[id]]
-  }
-  initial <- if(attr(x$meta$lambda, "sign") == -1L) { # Initial
-    cumsum(c(exact[1L], -(exact[1L] + x$initial$lambda)))
-  } else {
-    cumsum(c(exact[1L], -(exact[1L] - x$initial$lambda)))
-  }
-
-  list("initial" = initial, "exact" = exact, "id" = id)
-}
-
-
 target <- function(x, ...) {{UseMethod("target", x)}}
 
 target.influence <- function(x,
-  lambda = set_lambda(), id = NULL,
-  target = NULL, n_upper = NULL, ...) {
+  lambda = set_lambda(),
+  target = NULL, n_upper = NULL, n_lower = 0L, ...) {
 
   if(is.null(target)) {
     target <- attr(lambda, "target")
@@ -96,20 +56,4 @@ re_infl <- function(x, rm) {
       options = set_options("none"), cluster = x$meta$cluster[-rm, ])
   }
   return(re)
-}
-
-sens_dummy <- function(x, rank, lambda) {
-  list(
-    "initial" = data.frame(
-      "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
-    ),
-    "model" = as.data.frame(matrix(
-      NA_real_, 1L, 2 + length(x$lm$beta) * 2,
-      dimnames = list(NULL, c("N", "sigma",
-        paste0("beta_", seq.int(length(x$lm$beta))),
-        paste0("se_", seq.int(length(x$lm$beta))))
-      )
-    )),
-    "meta" = list("lambda" = lambda)
-  )
 }

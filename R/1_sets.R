@@ -1,7 +1,25 @@
 
 sens <- function(x, ...) {{UseMethod("sens", x)}}
 
-sens.lm <- function(x,
+sens.lm <- function(x, lambda = set_lambda(),
+  options = set_options(), cluster = NULL, verbose = TRUE) {
+  sensitivity_lm(x, lambda = lambda, options = options,
+    cluster = cluster, verbose = verbose)
+}
+
+sens.ivreg <- function(x, lambda = set_lambda(),
+  options = set_options(), cluster = NULL, verbose = TRUE) {
+  if(is.null(get_data(x)$Z)) {
+    sensitivity_lm(x, lambda = lambda, options = options,
+      cluster = cluster, verbose = verbose)
+  } else {
+    sensitivity_iv(x, lambda = lambda, options = options,
+      cluster = cluster, verbose = verbose)
+  }
+}
+
+
+sensitivity_lm <- function(x,
   lambda = set_lambda(),
   options = set_options(),
   cluster = NULL,
@@ -11,11 +29,11 @@ sens.lm <- function(x,
 
   verbose <- isTRUE(verbose)
 
-  data <- mdl_to_mat(x)
-  z <- x
+  meta <- list("lambda" = lambda, "options" = options, "cluster" = cluster,
+    "model" = x, "class" = "lm")
 
-  N <- NROW(data$y)
-  K <- NCOL(data$X)
+  K <- x$rank
+  N <- K + x$df.residual
 
   # Iterations
   n_max <- check_iterations(N, options$n_max, options$p_max)
@@ -23,19 +41,21 @@ sens.lm <- function(x,
   # Cluster for clustered standard errors
   cluster <- check_cluster(cluster, N)
 
+  data <- get_data(x)
+
   # Reduce covariates using the Frisch-Waugh-Lovell theorem
   if(!any(options$fwl == 0)) {
     if(any(options$fwl > K)) {
       warning("No variables to marginalise using FWL found.")
     } else {
-      z <- frisch_waugh_lovell(data$X, data$y, variables = options$fwl)
+      x <- update_fwl(data$X, data$y, variables = options$fwl)
     }
   } # Reapplication later is determined by options$fwl_re
 
 
   # Start ---
 
-  step <- influence_lm(z, options = options, cluster = cluster)
+  step <- influence_lm(x, options = options, cluster = cluster)
   rank <- rank_influence(step, lambda)
 
   # Prepare outputs
@@ -58,14 +78,13 @@ sens.lm <- function(x,
     "initial" = data.frame(
       "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
     ),
-    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster,
-      "model" = x, "class" = "lm")
+    "meta" = meta
   ), class = "sensitivity")
 
   rm[1L] <- rank[1L, "order"]
   out$model[1, ] <- c(N,
-    step$lm$sigma, step$lm$beta, step$lm$se,
-    step$lm$r2, step$lm$fstat, step$lm$ll)
+    step$model$sigma, step$model$beta, step$model$se,
+    step$model$r2, step$model$fstat, step$model$ll)
 
   if(n_max == 1L) {return(out)}
 
@@ -80,41 +99,35 @@ sens.lm <- function(x,
 
     # Reorthogonalise FWL
     if(!any(options$fwl == 0) && (i - 1L) %% options$fwl_re == 0) {
-      z <- frisch_waugh_lovell(data$X[-rm, , drop = FALSE],
-        data$y[-rm, drop = FALSE], variables = options$fwl)
+      x <- update_fwl(data$X, data$y, variables = options$fwl, rm = rm)
     }
 
     # Update using QR or Sherman-Morrison
-    if((i - 1L) %% options$sm_re == 0) {
-      step <- tryCatch(influence_lm(z, rm,
-        options = options, cluster = cluster),
-        error = function(e) {
-          warning("Computation failed at step ", i, " with: ", e); e
-      })
-    } else {
-      step <- tryCatch(influence_lm(z, rm,
+    step <- tryCatch(
+      influence_lm(x, rm,
         options = options, cluster = cluster,
-        XX_inv = update_inv(step$lm$XX_inv, X[rm[i - 1L], , drop = FALSE])),
-        error = function(e) {
-          warning("Computation failed at step ", i, " with: ", e); e
+        XX_inv = if((i - 1L) %% options$sm_re != 0) {
+          update_inv(step$model$XX_inv, data$X[rm[i - 1L], , drop = FALSE])
+        } else {NULL}),
+      error = function(e) {
+        message("Computation failed at step ", i, " with: ", e); e
       })
-    }
     if(inherits(step, "error")) {break}
     rank <- rank_influence(step, lambda)
 
     # Store results
     if(options$adaptive) {
-      rm[i] <- idx[-rm][rank[1L, "order"]] # Index kept constant
+      rm[i] <- idx[-rm][rank[1L, "order"]] # Index manually kept constant
       rm_val <- rank[rank[1L, "order"], "value"]
     } else {
-      rm[i] <- out$initial$id[i]
+      rm[i] <- out$initial$id[i] # Initial index
       rm_val <- out$initial$lambda[i]
     }
     out$influence$id[i] <- rm[i]
     out$influence$lambda[i] <- rm_val
     out$model[i, ] <- c(N - i + 1,
-      step$lm$sigma, step$lm$beta, step$lm$se,
-      step$lm$r2, step$lm$fstat, step$lm$ll)
+      step$model$sigma, step$model$beta, step$model$se,
+      step$model$r2, step$model$fstat, step$model$ll)
 
     if(verbose) {setTxtProgressBar(pb, i)}
   }
@@ -132,7 +145,7 @@ sens.lm <- function(x,
 }
 
 
-sens.ivreg <- function(x,
+sensitivity_iv <- function(x,
   lambda = set_lambda(),
   options = set_options(),
   cluster = NULL,
@@ -141,14 +154,11 @@ sens.ivreg <- function(x,
   # Inputs ---
 
   verbose <- isTRUE(verbose)
+  meta <- list("lambda" = lambda, "options" = options, "cluster" = cluster,
+    "model" = x, "class" = "ivreg")
 
-  data <- mdl_to_mat(x)
-  if(is.null(data$Z)) {return(sens.lm(x, lambda, options, cluster))}
-  z <- x
-
-  N <- NROW(data$y)
-  K <- NCOL(data$X)
-  M <- NCOL(data$Z)
+  N <- x$n
+  K <- if(is.null(x$p)) {x$rank} else {x$p}
 
   # Iterations
   n_max <- check_iterations(N, options$n_max, options$p_max)
@@ -163,7 +173,7 @@ sens.ivreg <- function(x,
 
   # Start ---
 
-  step <- influence_iv(z, options = options, cluster = cluster)
+  step <- influence_iv(x, options = options, cluster = cluster)
   rank <- rank_influence(step, lambda)
 
   # Prepare outputs
@@ -187,14 +197,14 @@ sens.ivreg <- function(x,
     "initial" = data.frame(
       "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
     ),
-    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster,
-      "model" = x, "class" = "ivreg")
+    "meta" = meta
   ), class = "sensitivity")
 
   rm[1L] <- rank[1L, "order"]
   out$model[1, ] <- c(N,
-    step$lm$sigma, step$lm$beta, step$lm$se,
-    step$lm$r2, step$lm$fstat, step$lm$r2_first, step$lm$fstat_first)
+    step$model$sigma, step$model$beta, step$model$se,
+    step$model$r2, step$model$fstat,
+    step$model$r2_first, step$model$fstat_first)
 
 
   # Iterate ---
@@ -206,11 +216,11 @@ sens.ivreg <- function(x,
   for(i in seq.int(2L, n_max + 1L)) {
 
     # No FWL or SM for IV models
-    step <- tryCatch(influence_iv(x, rm,
-      options = options, cluster = cluster),
+    step <- tryCatch(
+      influence_iv(x, rm, options = options, cluster = cluster),
       error = function(e) {
-        warning("Computation failed at step ", i, " with: ", e); e
-    })
+        message("Computation failed at step ", i, " with: ", e); e
+      })
     if(inherits(step, "error")) {break}
     rank <- rank_influence(step, lambda)
 
@@ -225,8 +235,9 @@ sens.ivreg <- function(x,
     out$influence$id[i] <- rm[i]
     out$influence$lambda[i] <- rm_val
     out$model[i, ] <- c(N - i + 1,
-      step$lm$sigma, step$lm$beta, step$lm$se,
-      step$lm$r2, step$lm$fstat, step$lm$r2_first, step$lm$fstat_first)
+      step$model$sigma, step$model$beta, step$model$se,
+      step$model$r2, step$model$fstat,
+      step$model$r2_first, step$model$fstat_first)
 
     if(verbose) {setTxtProgressBar(pb, i)}
   }

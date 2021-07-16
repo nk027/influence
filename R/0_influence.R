@@ -3,22 +3,26 @@ infl <- function(x, ...) {{UseMethod("infl", x)}}
 
 
 infl.matrix <- function(x, y, z,
-  options = set_compute(), cluster = NULL) {
+  rm = NULL, options = set_compute(), cluster = NULL) {
   if(missing(z)) {
     influence_lm(list("x" = x, "y" = y),
-      options = options, cluster = cluster)
+      rm = rm, options = options, cluster = cluster)
   } else {
     influence_iv(list("x" = list("regressors" = x, "instruments" = z), "y" = y),
-      options = options, cluster = cluster)
+      rm = rm, options = options, cluster = cluster)
   }
 }
 
-infl.lm <- function(x, options = set_compute(), cluster = NULL) {
-  influence_lm(x, options = options, cluster = cluster)
+infl.lm <- function(x, rm = NULL, options = set_compute(), cluster = NULL) {
+  influence_lm(x, rm = rm, options = options, cluster = cluster)
 }
 
-infl.ivreg <- function(x, options = set_compute(), cluster = NULL) {
-  influence_iv(x, options = options, cluster = cluster)
+infl.ivreg <- function(x, rm = NULL, options = set_compute(), cluster = NULL) {
+  if(is.null(get_data(x)$Z)) {
+    influence_lm(x, rm = rm, options = options, cluster = cluster)
+  } else {
+    influence_iv(x, rm = rm, options = options, cluster = cluster)
+  }
 }
 
 
@@ -27,12 +31,14 @@ influence_lm <- function(x, rm = NULL,
 
   # Inputs ---
 
-  data <- mdl_to_mat(x)
+  meta <- list("model" = x, "cluster" = cluster, "class" = "lm")
+
+  data <- get_data(x)
   if(is.null(rm)) {
     y <- data$y
     X <- data$X
 
-    qr_x <- x$qr
+    if(!is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
     R <- qr.R(qr_x)
   } else {
     y <- data$y[-rm, drop = FALSE]
@@ -84,6 +90,11 @@ influence_lm <- function(x, rm = NULL,
   ll <- 0.5 * (-N * (log(2 * pi) + 1 - log(N) + log(rss)))
   # aic <- -2 * ll + 2 * (K + 1)
   # bic <- -2 * ll + (K + 1) * log(N)
+
+  model <- list("beta" = beta, "sigma" = sigma, "se" = se, "tstat" = tstat,
+    "r2" = r2, "fstat" = fstat, "ll" = ll, "qr" = qr_x, "XX_inv" = XX_inv),
+
+  if(isTRUE(options$recompute)) {return(list("model" = model, "meta" = meta))}
 
 
   # Influence quantities ---
@@ -191,33 +202,32 @@ influence_lm <- function(x, rm = NULL,
   # Return ---
 
   structure(list(
-    "lm" = list("beta" = beta, "sigma" = sigma,
-      "se" = se, "tstat" = tstat,
-      "r2" = r2, "fstat" = fstat, "ll" = ll,
-      "qr" = qr_x, "XX_inv" = XX_inv),
-    "hat" = hat,
-    "beta_i" = beta_i, "sigma_i" = sigma_i,
-    "se_i" = se_i, "tstat_i" = tstat_i,
+    "model" = model, "hat" = hat,
+    "beta_i" = beta_i, "sigma_i" = sigma_i, "se_i" = se_i, "tstat_i" = tstat_i,
     "cooksd" = cooksd, "dffits" = dffits,
     "rstudent" = rstudent, "covratio" = covratio,
-    "meta" = list("model" = x, "cluster" = cluster, "class" = "ivreg")
+    "meta" = meta
   ), class = "influence")
 }
 
 
-influence_iv <- function(X, Z, y, rm = NULL,
+influence_iv <- function(x, rm = NULL,
   options, cluster = NULL) {
 
   # Inputs ---
 
-  data <- mdl_to_mat(x)
+  meta <- list("model" = x, "cluster" = cluster, "class" = "ivreg")
+
+  data <- get_data(x)
   if(is.null(rm)) {
     y <- data$y
     X <- data$X
     Z <- data$Z
 
-    qr_z <- x$qr1
-    qr_x <- x$qr
+    if(!is.null(qr_z <- x$qr1)) {qr_z <- qr(Z)}
+    X_proj <- qr.fitted(qr_z, X)
+    X_resid <- X - X_proj
+    if(!is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
     R <- qr.R(qr_x)
   } else {
     y <- data$y[-rm, drop = FALSE]
@@ -270,6 +280,13 @@ influence_iv <- function(X, Z, y, rm = NULL,
   r2_first <- 1 - sum(X_resid[, pos_endo]^2) /
     sum((X[, pos_endo] - colMeans(X[, pos_endo, drop = FALSE]))^2)
   fstat_first <- r2_first / (1 - r2_first) * (N - M) / (M - 1)
+
+  model <- list("beta" = beta, "sigma" = sigma, "se" = se, "tstat" = tstat,
+    "r2" = r2, "fstat" = fstat,
+    "r2_first" = r2_first,  "fstat_first" = fstat_first,
+    "qr_z" = qr_z, "qr_x" = qr_x, "qr_a" = qr_a),
+
+  if(isTRUE(options$recompute)) {return(list("model" = model, "meta" = meta))}
 
 
   # Influence quantities ---
@@ -401,16 +418,10 @@ influence_iv <- function(X, Z, y, rm = NULL,
   # Return ---
 
   structure(list(
-    "lm" = list("beta" = beta, "sigma" = sigma,
-      "se" = se, "tstat" = tstat,
-      "r2" = r2, "fstat" = fstat,
-      "r2_first" = r2_first, "fstat_first" = fstat_first,
-      "qr_z" = qr_z, "qr_x" = qr_x, "qr_a" = qr_a),
-    "hat" = hat,
-    "beta_i" = beta_i, "sigma_i" = sigma_i,
-    "se_i" = se_i, "tstat_i" = tstat_i,
+    "model" = model, "hat" = hat,
+    "beta_i" = beta_i, "sigma_i" = sigma_i, "se_i" = se_i, "tstat_i" = tstat_i,
     "cooksd" = cooksd, "dffits" = dffits,
     "rstudent" = rstudent, "covratio" = covratio,
-    "meta" = list("model" = x, "cluster" = cluster, "class" = "ivreg")
+    "meta" = meta
   ), class = "influence")
 }
