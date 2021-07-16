@@ -64,7 +64,7 @@ set_compute <- function(x = c("all", "some", "none"),
   if(out$tstat) {out$se <- out$beta <- out$sigma <- TRUE}
   if(out$cooksd || out$dffits || out$rstudent || out$covratio) {out$hat <- TRUE}
   if((out$dffits || out$rstudent || out$covratio )&& !out$sigma) {
-    warning("Consider computing observation-specific sigma.")
+    warning("Consider setting `sigma=TRUE` for exact computation.")
   }
 
   return(out)

@@ -5,31 +5,49 @@ infl <- function(x, ...) {{UseMethod("infl", x)}}
 infl.matrix <- function(x, y, z,
   options = set_compute(), cluster = NULL) {
   if(missing(z)) {
-    return(influence_lm(x, y, options = options, cluster = cluster))
+    influence_lm(list("x" = x, "y" = y),
+      options = options, cluster = cluster)
   } else {
-    return(influence_iv(x, y, z, options = options, cluster = cluster))
+    influence_iv(list("x" = list("regressors" = x, "instruments" = z), "y" = y),
+      options = options, cluster = cluster)
   }
 }
 
 infl.lm <- function(x, options = set_compute(), cluster = NULL) {
-  data <- mdl_to_mat(x)
-  y <- data$y
-  X <- data$X
-  influence_lm(X, y, options = options, cluster = cluster)
+  influence_lm(x, options = options, cluster = cluster)
 }
 
 infl.ivreg <- function(x, options = set_compute(), cluster = NULL) {
-  data <- mdl_to_mat(x)
-  if(is.null(data$Z)) {infl.lm(x, options = options, cluster = cluster)}
-  y <- data$y
-  X <- data$X
-  Z <- data$Z
-  influence_iv(X, Z, y, options = options, cluster = cluster)
+  influence_iv(x, options = options, cluster = cluster)
 }
 
 
-influence_lm <- function(X, y,
-  options, XX_inv = NULL, cluster = NULL) {
+influence_lm <- function(x, rm = NULL,
+  options, cluster = NULL, XX_inv = NULL) {
+
+  # Inputs ---
+
+  data <- mdl_to_mat(x)
+  if(is.null(rm)) {
+    y <- data$y
+    X <- data$X
+
+    qr_x <- x$qr
+    R <- qr.R(qr_x)
+  } else {
+    y <- data$y[-rm, drop = FALSE]
+    X <- data$X[-rm, , drop = FALSE]
+
+    if(is.null(XX_inv)) { # Avoid recomputation if (X'X)⁻¹ is provided
+      qr_x <- qr(X)
+      if(qr_x$rank != NCOL(X)) {stop("Removal resulted in loss of full rank.")}
+      R <- qr.R(qr_x)
+    } else {
+      qr_x <- R <- NULL
+    }
+    if(!is.null(cluster)) {cluster <- cluster[-rm, , drop = FALSE]}
+  }
+
 
   # Regression quantities ---
 
@@ -38,17 +56,12 @@ influence_lm <- function(X, y,
   idx <- seq.int(N)
 
   # Coefficients
-  if(is.null(XX_inv)) {
-    qr_x <- qr(X)
-    if(qr_x$rank != K) {stop("Removal resulted in loss of full rank.")}
-    R <- qr.R(qr_x)[seq.int(qr_x$rank), seq.int(qr_x$rank)]
+  if(!is.null(qr_x)) {
     beta <- as.numeric(solve_cholesky(R, crossprod(X, y)))
     XX_inv <- chol2inv(R)
   } else {
-    qr_x <- R <- NULL
     beta <- as.numeric(XX_inv %*% crossprod(X, y))
   }
-
   res <- as.numeric(y - X %*% beta)
   rss <- sum(res^2)
   sigma <- sqrt(rss / (N - K))
@@ -88,18 +101,26 @@ influence_lm <- function(X, y,
   }
 
   # DFBETA
-  beta_i <- if(!is.null(R)) {
-    t(t(t(-solve_cholesky(R, t(X))) *
-      ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
-  } else {
-    t(t(t(-tcrossprod(XX_inv, X)) *
-      ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
+  beta_i <- if(isTRUE(options$sigma)) {
+    if(!is.null(R)) {
+      t(t(t(-solve_cholesky(R, t(X))) *
+        ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
+    } else {
+      t(t(t(-tcrossprod(XX_inv, X)) *
+        ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
+    }
+  } else { # BGM's derivative
+    if(!is.null(R)) {
+      t(t(t(-solve_cholesky(R, t(X))) * res) + beta)
+    } else {
+      t(t(t(-tcrossprod(XX_inv, X)) * res) + beta)
+    }
   }
 
   # Sigma when dropping observation i
   sigma_i <- if(isTRUE(options$sigma)) {
     matrix(sqrt((rss - res^2 / ifelse(hat == 1, 1, (1 - hat))) / (N - K - 1)))
-  } else {
+  } else { # BGM's derivative
     matrix(res^2 / (N - K) + sigma)
   }
 
@@ -118,22 +139,23 @@ influence_lm <- function(X, y,
       sqrt(diag(1 / (N - 1) * (bread_i %*% veggies_i %*% bread_i)))
     }, numeric(K))
     if(K != 1) {se_i <- t(se_i)} else {se_i <- matrix(se_i)}
-  } else { # Ignoring the inverse
+  } else { # BGM's derivative
     sigma_dbeta <- -2 * colSums(res * X) / (N - K)
     R_x <- if(!is.null(R)) {solve_cholesky(R, t(X))} else {XX_inv %*% t(X)}
     veggies_i <- (-R_x^2) * sigma^2 +
       outer(diag(XX_inv), (sigma_i[, 1] - sigma))
-    sigma_d <- colSums(sigma_dbeta * (t(beta_i) - beta) + sigma_i[, 1])
+    sigma_d <- colSums(sigma_dbeta * (t(beta_i) - beta)) +
+      (sigma_i[, 1] - sigma)
     bread_i <- veggies_i + outer(diag(XX_inv),
-      colSums(sigma_dbeta * (t(beta_i) - beta)))
-    se_i <- -t(0.5 * bread_i / sqrt(diag(vcov))) + se
+      colSums(sigma_dbeta * -(t(beta_i) - beta)))
+    se_i <- t(-0.5 * bread_i / sqrt(diag(vcov)) + se)
   }
 
   # t value
   tstat_i <- if(isTRUE(options$tstat)) {
     matrix(beta_i / se_i, N, K)
-  } else {
-    NULL
+  } else { # Doesn't enforce exact beta and se
+    matrix(beta_i / se_i, N, K)
   }
 
   # DFFITS
@@ -168,7 +190,7 @@ influence_lm <- function(X, y,
 
   # Return ---
 
-  out <- structure(list(
+  structure(list(
     "lm" = list("beta" = beta, "sigma" = sigma,
       "se" = se, "tstat" = tstat,
       "r2" = r2, "fstat" = fstat, "ll" = ll,
@@ -177,13 +199,41 @@ influence_lm <- function(X, y,
     "beta_i" = beta_i, "sigma_i" = sigma_i,
     "se_i" = se_i, "tstat_i" = tstat_i,
     "cooksd" = cooksd, "dffits" = dffits,
-    "rstudent" = rstudent, "covratio" = covratio
+    "rstudent" = rstudent, "covratio" = covratio,
+    "meta" = list("model" = x, "cluster" = cluster, "class" = "ivreg")
   ), class = "influence")
 }
 
 
-influence_iv <- function(X, Z, y,
+influence_iv <- function(X, Z, y, rm = NULL,
   options, cluster = NULL) {
+
+  # Inputs ---
+
+  data <- mdl_to_mat(x)
+  if(is.null(rm)) {
+    y <- data$y
+    X <- data$X
+    Z <- data$Z
+
+    qr_z <- x$qr1
+    qr_x <- x$qr
+    R <- qr.R(qr_x)
+  } else {
+    y <- data$y[-rm, drop = FALSE]
+    X <- data$X[-rm, , drop = FALSE]
+    Z <- data$Z[-rm, , drop = FALSE]
+
+    qr_z <- qr(Z)
+    if(qr_z$rank != NCOL(Z)) {stop("Removal resulted in loss of full rank.")}
+    X_proj <- qr.fitted(qr_z, X)
+    X_resid <- X - X_proj
+    qr_x <- qr(X_proj)
+    if(qr_x$rank != NCOL(X)) {stop("Removal resulted in loss of full rank.")}
+    R <- qr.R(qr_x)
+    if(!is.null(cluster)) {cluster <- cluster[-rm, , drop = FALSE]}
+  }
+
 
   # Regression quantities ---
 
@@ -193,17 +243,11 @@ influence_iv <- function(X, Z, y,
   idx <- seq.int(N)
 
   # Coefficients
-  qr_z <- qr(Z) # Needed for projection, residuals, and stage 1 hat
-  X_proj <- qr.fitted(qr_z, X)
-  X_resid <- X - X_proj
-  qr_x <- qr(X_proj) # Needed for beta, vcov, and stage 2 hat
   beta <- qr.coef(qr_x, y)
-  qr_a <- qr(crossprod(X, X_proj)) # Needed for influence
-  XX_inv <- chol2inv(qr.R(qr_x))
+  qr_a <- qr(crossprod(X, X_proj))
+  XX_inv <- chol2inv(R)
 
   res <- as.numeric(y - X %*% beta)
-  res_z <- qr.resid(qr_z, y)
-  res_p <- as.numeric(y - X_proj %*% beta)
   rss <- sum(res^2)
   sigma <- sqrt(rss / (N - K))
 
@@ -231,6 +275,8 @@ influence_iv <- function(X, Z, y,
   # Influence quantities ---
 
   if(options$beta) {
+    res_z <- qr.resid(qr_z, y)
+    res_p <- as.numeric(y - X_proj %*% beta)
     # Diagonal of hat matrices ( X(X'PX)⁻¹X', R(X'PX)⁻¹X', (X'PX)⁻¹R' )
     Ai_X <- qr.solve(qr_a, t(X))
     Ai_Xr <- qr.solve(qr_a, t(X_resid))
@@ -246,7 +292,7 @@ influence_iv <- function(X, Z, y,
     g <- h * as.numeric(res_z - res_p) + (h + j) * res
     dfb <- t(qr.solve(qr_a, t(g)))
     beta_i <- t(t(dfb) + beta)
-  } else {
+  } else { # BGM's derivative
     dfb <- t(-solve(qr(crossprod(Z, X)), t(Z * res)))
     beta_i <- t(t(dfb) + beta)
   }
@@ -272,8 +318,8 @@ influence_iv <- function(X, Z, y,
         dfb[i, ] %*% update_cp(XR, X[i, , drop = FALSE], res[i])
       }, numeric(1L)) - res^2
     sigma_i <- matrix(sqrt(rss_i / (N - K - 1L)))
-  } else {
-    sigma_i <- matrix(sigma, N)
+  } else { # BGM's derivative
+    sigma_i <- matrix(res^2 / (N - K) + sigma, N)
   }
 
   # Standard errors
@@ -299,15 +345,24 @@ influence_iv <- function(X, Z, y,
       sqrt(diag(1 / (N - 1) * (bread_i %*% veggies_i %*% bread_i)))
     }, numeric(K))
     if(K != 1) {se_i <- t(se_i)} else {se_i <- matrix(se_i)}
-  } else {
-    se_i <- NULL
+  } else { # BGM's derivative
+    sigma_dbeta <- -2 * colSums(res * X) / (N - K)
+    R_x <- if(!is.null(R)) {solve_cholesky(R, t(X))} else {XX_inv %*% t(X)}
+    R_z <- solve(qr(crossprod(Z, X)), t(Z))
+    veggies_i <- (R_z^2 - 2 * R_x * R_z) * sigma^2 +
+      outer(diag(XX_inv), (sigma_i[, 1L] - sigma))
+    sigma_d <- colSums(sigma_dbeta * -(t(beta_i) - beta)) +
+      (sigma_i[, 1L] - sigma)
+    bread_i <- veggies_i + outer(diag(XX_inv),
+      colSums(sigma_dbeta * -(t(beta_i) - beta)))
+    se_i <- t(-0.5 * bread_i / sqrt(diag(vcov)) + se)
   }
 
   # t value
   tstat_i <- if(isTRUE(options$tstat)) {
     matrix(beta_i / se_i, N, K)
-  } else {
-    NULL
+  } else { # Doesn't enforce exact beta and se
+    matrix(beta_i / se_i, N, K)
   }
 
   # DFFITS
@@ -345,7 +400,7 @@ influence_iv <- function(X, Z, y,
 
   # Return ---
 
-  out <- structure(list(
+  structure(list(
     "lm" = list("beta" = beta, "sigma" = sigma,
       "se" = se, "tstat" = tstat,
       "r2" = r2, "fstat" = fstat,
@@ -355,6 +410,7 @@ influence_iv <- function(X, Z, y,
     "beta_i" = beta_i, "sigma_i" = sigma_i,
     "se_i" = se_i, "tstat_i" = tstat_i,
     "cooksd" = cooksd, "dffits" = dffits,
-    "rstudent" = rstudent, "covratio" = covratio
+    "rstudent" = rstudent, "covratio" = covratio,
+    "meta" = list("model" = x, "cluster" = cluster, "class" = "ivreg")
   ), class = "influence")
 }

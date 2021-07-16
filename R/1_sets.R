@@ -1,7 +1,6 @@
 
 sens <- function(x, ...) {{UseMethod("sens", x)}}
 
-
 sens.lm <- function(x,
   lambda = set_lambda(),
   options = set_options(),
@@ -13,11 +12,10 @@ sens.lm <- function(x,
   verbose <- isTRUE(verbose)
 
   data <- mdl_to_mat(x)
-  y <- data$y
-  X <- data$X
+  z <- x
 
-  N <- NROW(y)
-  K <- NCOL(X)
+  N <- NROW(data$y)
+  K <- NCOL(data$X)
 
   # Iterations
   n_max <- check_iterations(N, options$n_max, options$p_max)
@@ -30,17 +28,14 @@ sens.lm <- function(x,
     if(any(options$fwl > K)) {
       warning("No variables to marginalise using FWL found.")
     } else {
-      fwl <- frisch_waugh_lovell(data$X, data$y, variables = options$fwl)
-      y <- fwl$y
-      X <- fwl$X
-      K <- NCOL(X)
+      z <- frisch_waugh_lovell(data$X, data$y, variables = options$fwl)
     }
   } # Reapplication later is determined by options$fwl_re
 
 
   # Start ---
 
-  step <- influence_lm(X, y, options = options, cluster = cluster)
+  step <- influence_lm(z, options = options, cluster = cluster)
   rank <- rank_influence(step, lambda)
 
   # Prepare outputs
@@ -63,7 +58,8 @@ sens.lm <- function(x,
     "initial" = data.frame(
       "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
     ),
-    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster)
+    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster,
+      "model" = x, "class" = "lm")
   ), class = "sensitivity")
 
   rm[1L] <- rank[1L, "order"]
@@ -84,26 +80,21 @@ sens.lm <- function(x,
 
     # Reorthogonalise FWL
     if(!any(options$fwl == 0) && (i - 1L) %% options$fwl_re == 0) {
-      fwl <- frisch_waugh_lovell(data$X[-rm, , drop = FALSE],
+      z <- frisch_waugh_lovell(data$X[-rm, , drop = FALSE],
         data$y[-rm, drop = FALSE], variables = options$fwl)
-      y[-rm] <- fwl$y
-      X[-rm, ] <- fwl$X
     }
 
     # Update using QR or Sherman-Morrison
     if((i - 1L) %% options$sm_re == 0) {
-      step <- tryCatch(influence_lm(
-        X[-rm, , drop = FALSE], y[-rm, drop = FALSE],
-        options = options, cluster = cluster[-rm, , drop = FALSE]),
+      step <- tryCatch(influence_lm(z, rm,
+        options = options, cluster = cluster),
         error = function(e) {
           warning("Computation failed at step ", i, " with: ", e); e
       })
     } else {
-      step <- tryCatch(influence_lm(
-        X[-rm, , drop = FALSE], y[-rm, drop = FALSE],
-        options = options,
-        XX_inv = update_inv(step$lm$XX_inv, X[rm[i - 1L], , drop = FALSE]),
-        cluster = cluster[-rm, , drop = FALSE]),
+      step <- tryCatch(influence_lm(z, rm,
+        options = options, cluster = cluster,
+        XX_inv = update_inv(step$lm$XX_inv, X[rm[i - 1L], , drop = FALSE])),
         error = function(e) {
           warning("Computation failed at step ", i, " with: ", e); e
       })
@@ -153,13 +144,11 @@ sens.ivreg <- function(x,
 
   data <- mdl_to_mat(x)
   if(is.null(data$Z)) {return(sens.lm(x, lambda, options, cluster))}
-  y <- data$y
-  X <- data$X
-  Z <- data$Z
+  z <- x
 
-  N <- NROW(y)
-  K <- NCOL(X)
-  M <- NCOL(Z)
+  N <- NROW(data$y)
+  K <- NCOL(data$X)
+  M <- NCOL(data$Z)
 
   # Iterations
   n_max <- check_iterations(N, options$n_max, options$p_max)
@@ -174,7 +163,7 @@ sens.ivreg <- function(x,
 
   # Start ---
 
-  step <- influence_iv(X, Z, y, options = options, cluster = cluster)
+  step <- influence_iv(z, options = options, cluster = cluster)
   rank <- rank_influence(step, lambda)
 
   # Prepare outputs
@@ -198,7 +187,8 @@ sens.ivreg <- function(x,
     "initial" = data.frame(
       "id" = rank[, "order"], "lambda" = rank[rank[, "order"], "value"]
     ),
-    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster)
+    "meta" = list("lambda" = lambda, "options" = options, "cluster" = cluster,
+      "model" = x, "class" = "ivreg")
   ), class = "sensitivity")
 
   rm[1L] <- rank[1L, "order"]
@@ -216,9 +206,8 @@ sens.ivreg <- function(x,
   for(i in seq.int(2L, n_max + 1L)) {
 
     # No FWL or SM for IV models
-    step <- tryCatch(influence_iv(X[-rm, , drop = FALSE],
-      Z[-rm, , drop = FALSE], y[-rm, drop = FALSE],
-      options = options, cluster = cluster[-rm, , drop = FALSE]),
+    step <- tryCatch(influence_iv(x, rm,
+      options = options, cluster = cluster),
       error = function(e) {
         warning("Computation failed at step ", i, " with: ", e); e
     })

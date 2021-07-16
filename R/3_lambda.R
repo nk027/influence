@@ -11,11 +11,15 @@ set_lambda <- function(
     "cooksd", "dffits", "rstudent", "covratio", "BKW"),
   position = 1L,
   sign = 1L,
+  target = 0L,
   f = function(x, ...) {NULL}) {
+
+  target <- num_check(target, -Inf, Inf, msg = "Please check the target.")
 
   # Check custom functions
   if(!is.null(f())) {
     attr(f, "type") <- "custom"
+    attr(f, "target") <- target
     return(f)
   }
 
@@ -43,6 +47,7 @@ set_lambda <- function(
     attr(f, "position") <- position
     attr(f, "sign") <- sign
   }
+  attr(f, "target") <- target
 
   return(f)
 }

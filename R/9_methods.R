@@ -1,30 +1,4 @@
 
-init <- function(x, ...) {{UseMethod("init", x)}}
-
-init.sensitivity <- function(x, id = NULL, ...) {
-
-  if(is.null(id)) { # Try to guess
-    type <- gsub("^([a-z]+).*", "\\1", attr(x$meta$lambda, "type"))
-    position <- attr(x$meta$lambda, "position")
-    id <- paste0(type, "_", position)
-  }
-
-  exact <- if(grepl("tstat", id)) { # Exact
-    x$model[[paste0("beta_", gsub(".*_([0-9]+)", "\\1", id))]] /
-      x$model[[paste0("se_", gsub(".*_([0-9]+)", "\\1", id))]]
-  } else {
-    x$model[[id]]
-  }
-  initial <- if(attr(x$meta$lambda, "sign") == -1L) { # Initial
-    cumsum(c(exact[1L], -(exact[1L] + x$initial$lambda)))
-  } else {
-    cumsum(c(exact[1L], -(exact[1L] - x$initial$lambda)))
-  }
-
-  list("initial" = initial, "exact" = exact, "id" = id)
-}
-
-
 print.influence <- function(x, ...) {
   cat("Influence object\n")
   print(str(x))
