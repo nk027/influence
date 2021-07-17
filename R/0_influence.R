@@ -40,6 +40,7 @@ influence_lm <- function(x, rm = NULL,
 
     if(!is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
     R <- qr.R(qr_x)
+    r_cond <- rcond(R, norm = "I")
   } else {
     y <- data$y[-rm, drop = FALSE]
     X <- data$X[-rm, , drop = FALSE]
@@ -48,8 +49,10 @@ influence_lm <- function(x, rm = NULL,
       qr_x <- qr(X)
       if(qr_x$rank != NCOL(X)) {stop("Removal resulted in loss of full rank.")}
       R <- qr.R(qr_x)
+      r_cond <- rcond(R, norm = "I")
     } else {
-      qr_x <- R <- NULL
+      qr_x <- R <- r_cond <- NULL
+      cat("a")
     }
     if(!is.null(cluster)) {cluster <- cluster[-rm, , drop = FALSE]}
   }
@@ -92,7 +95,8 @@ influence_lm <- function(x, rm = NULL,
   # bic <- -2 * ll + (K + 1) * log(N)
 
   model <- list("beta" = beta, "sigma" = sigma, "se" = se, "tstat" = tstat,
-    "r2" = r2, "fstat" = fstat, "ll" = ll, "qr" = qr_x, "XX_inv" = XX_inv),
+    "r2" = r2, "fstat" = fstat, "ll" = ll,
+    "qr" = qr_x, "XX_inv" = XX_inv, "r_cond" = r_cond)
 
   if(isTRUE(options$recompute)) {return(list("model" = model, "meta" = meta))}
 
@@ -138,7 +142,9 @@ influence_lm <- function(x, rm = NULL,
   # Standard errors
   if(isTRUE(options$se) && is.null(cluster)) {
     se_i <- vapply(idx, function(i) {
-      sqrt(diag(update_inv(XX_inv, X[i, , drop = FALSE])) * (sigma_i[i])^2)
+      inv_i <- tryCatch(update_inv(XX_inv, X[i, , drop = FALSE]),
+        error = function(e) {matrix(NaN, nrow(X), ncol(X))})
+      sqrt(diag(inv_i) * (sigma_i[i])^2)
     }, numeric(K))
     if(K != 1) {se_i <- t(se_i)} else {se_i <- matrix(se_i)}
   } else if(isTRUE(options$se) && !is.null(cluster)) {
@@ -146,7 +152,9 @@ influence_lm <- function(x, rm = NULL,
       res_i <- res[-i] + as.numeric(X[-i, ] %*% (beta - beta_i[i, ]))
       veggies_i <- veggiesCL(res_i, X[-i, , drop = FALSE],
         cluster = cluster[-i, , drop = FALSE], type = "HC1")
-      bread_i <- update_inv(XX_inv, X[i, , drop = FALSE]) * (N - 1)
+      inv_i <- tryCatch(update_inv(XX_inv, X[i, , drop = FALSE]),
+        error = function(e) {matrix(NaN, nrow(X), ncol(X))})
+      bread_i <- inv_i * (N - 1)
       sqrt(diag(1 / (N - 1) * (bread_i %*% veggies_i %*% bread_i)))
     }, numeric(K))
     if(K != 1) {se_i <- t(se_i)} else {se_i <- matrix(se_i)}
@@ -171,29 +179,29 @@ influence_lm <- function(x, rm = NULL,
 
   # DFFITS
   dffits <- if(isTRUE(options$dffits)) {
-    matrix(res * sqrt(hat) / (sigma_i * (1 - hat)))
+    matrix(res * sqrt(hat) / (sigma_i * (1 - pmin(1, hat))))
   } else {
     NULL
   }
 
   # Cook's distance
   cooksd <- if(isTRUE(options$cooksd)) {
-    matrix(((res / ((1 - hat) * sigma))^2 * hat) / K)
+    matrix(((res / ((1 - pmin(1, hat)) * sigma))^2 * hat) / K)
   } else {
     NULL
   }
 
   # Studentised residual
   rstudent <- if(isTRUE(options$rstudent)) {
-    matrix(res / (sigma_i * sqrt(1 - hat)))
+    matrix(res / (sigma_i * sqrt(1 - pmin(1, hat))))
   } else {
     NULL
   }
 
   # Covratio
   covratio <- if(isTRUE(options$covratio)) {
-    matrix(1 / ((1 - hat) *
-      ((N - K - 1 + (res / (sigma_i * sqrt(1 - hat)))^2) / (N - K))^K))
+    matrix(1 / ((1 - pmin(1, hat)) *
+      ((N - K - 1 + (res / (sigma_i * sqrt(1 - pmin(1, hat))))^2) / (N - K))^K))
   } else {
     NULL
   }
@@ -284,7 +292,7 @@ influence_iv <- function(x, rm = NULL,
   model <- list("beta" = beta, "sigma" = sigma, "se" = se, "tstat" = tstat,
     "r2" = r2, "fstat" = fstat,
     "r2_first" = r2_first,  "fstat_first" = fstat_first,
-    "qr_z" = qr_z, "qr_x" = qr_x, "qr_a" = qr_a),
+    "qr_z" = qr_z, "qr_x" = qr_x, "qr_a" = qr_a)
 
   if(isTRUE(options$recompute)) {return(list("model" = model, "meta" = meta))}
 
@@ -344,7 +352,9 @@ influence_iv <- function(x, rm = NULL,
     ZX <- crossprod(Z, X)
     ZZ_inv <- chol2inv(qr.R(qr_z))
     se_i <- vapply(idx, function(i) {
-      proj_i <- Z[-i, ] %*% update_inv(ZZ_inv, Z[i, , drop = FALSE]) %*%
+      inv_i <- tryCatch(update_inv(ZZ_inv, Z[i, , drop = FALSE]),
+        error = function(e) {matrix(NaN, nrow(X), ncol(X))})
+      proj_i <- Z[-i, ] %*% inv_i %*%
         update_cp(ZX, Z[i, , drop = FALSE], X[i, , drop = FALSE])
       sqrt(diag(chol2inv(chol(crossprod(proj_i)))) * sigma_i[i]^2)
     }, numeric(K))
@@ -354,7 +364,9 @@ influence_iv <- function(x, rm = NULL,
     ZZ_inv <- chol2inv(qr.R(qr_z))
     se_i <- vapply(idx, function(i) {
       res_i <- res[-i] + as.numeric(X[-i, ] %*% t(beta_i[i, , drop = FALSE]))
-      proj_i <- Z[-i, ] %*% update_inv(ZZ_inv, Z[i, , drop = FALSE]) %*%
+      inv_i <- tryCatch(update_inv(ZZ_inv, Z[i, , drop = FALSE]),
+        error = function(e) {matrix(NaN, nrow(X), ncol(X))})
+      proj_i <- Z[-i, ] %*% inv_i %*%
         update_cp(ZX, Z[i, , drop = FALSE], X[i, , drop = FALSE])
       veggies_i <- veggiesCL(res_i, proj_i,
         cluster = cluster[-i, , drop = FALSE], type = "HC0")

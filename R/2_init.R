@@ -7,7 +7,7 @@ init.influence <- function(x, lambda = set_lambda(), start = NULL) {
   rank <- rank_influence(x, lambda = lambda)
   out <- create_object(x, rank = rank, lambda = lambda)
 
-  init.sensitivity(out, id = id, start = start)
+  init.sensitivity(out, start = start)
 }
 
 init.sensitivity <- function(x, start = NULL) {

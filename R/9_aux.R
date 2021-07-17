@@ -39,14 +39,19 @@ get_data.ivreg <- function(x) {
 
 # Update inverse
 update_inv <- function(XX_inv, X_rm) {
+
   if(NROW(X_rm) == 1) {
-    XX_inv + (XX_inv %*% crossprod(X_rm) %*% XX_inv) /
+    out <- XX_inv + (XX_inv %*% crossprod(X_rm) %*% XX_inv) /
       as.numeric(1 - X_rm %*% tcrossprod(XX_inv, X_rm))
   } else {
-    XX_inv + tcrossprod(XX_inv, X_rm) %*%
+    out <- XX_inv + tcrossprod(XX_inv, X_rm) %*%
       solve(diag(NROW(X_rm)) - X_rm %*% tcrossprod(XX_inv, X_rm),
       X_rm %*% XX_inv)
   }
+  if(abs(norm(XX_inv, "I") - norm(out, "I")) > 1e12) {
+    stop("Inverse update likely to suffer from numerical inaccuracy.")
+  }
+  return(out)
 }
 
 # Update crossproduct

@@ -103,14 +103,16 @@ sensitivity_lm <- function(x,
     }
 
     # Update using QR or Sherman-Morrison
+    XX_inv <- if((i - 1L) %% options$sm_re != 0) {
+      tryCatch(
+        update_inv(step$model$XX_inv, data$X[rm[i - 1L], , drop = FALSE]),
+        error = function(e) {chol2inv(qr.R(qr(X[-rm, , drop = FALSE])))})
+    } else {NULL}
     step <- tryCatch(
       influence_lm(x, rm,
-        options = options, cluster = cluster,
-        XX_inv = if((i - 1L) %% options$sm_re != 0) {
-          update_inv(step$model$XX_inv, data$X[rm[i - 1L], , drop = FALSE])
-        } else {NULL}),
+        options = options, cluster = cluster, XX_inv = XX_inv),
       error = function(e) {
-        message("Computation failed at step ", i, " with: ", e); e
+        message("\nComputation failed at step ", i, " with:\n", e); e
       })
     if(inherits(step, "error")) {break}
     rank <- rank_influence(step, lambda)
@@ -219,7 +221,7 @@ sensitivity_iv <- function(x,
     step <- tryCatch(
       influence_iv(x, rm, options = options, cluster = cluster),
       error = function(e) {
-        message("Computation failed at step ", i, " with: ", e); e
+        message("\nComputation failed at step ", i, " with:\n", e); e
       })
     if(inherits(step, "error")) {break}
     rank <- rank_influence(step, lambda)

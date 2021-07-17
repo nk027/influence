@@ -1,7 +1,7 @@
 
 set_options <- function(...,
   p_max = NULL, n_max = NULL,
-  sm_re = 5L, fwl = 0L, fwl_re = 1e6L,
+  sm_re = 1L, fwl = 0L, fwl_re = 1e6L,
   adaptive = TRUE) {
 
   out <- set_compute(...)
