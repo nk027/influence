@@ -7,18 +7,25 @@ init.influence <- function(x, lambda = set_lambda(), start = NULL) {
   rank <- rank_influence(x, lambda = lambda)
   out <- create_object(x, rank = rank, lambda = lambda)
 
-  init.sensitivity(out, start = start)
+  initial(out, start = start)
 }
 
 init.sensitivity <- function(x, start = NULL) {
+
+  initial(x, start = start)
+}
+
+
+initial <- function(x, start = NULL) {
 
   id <- check_id(NULL, lambda = x$meta$lambda)
   exact <- get_exact(x, id)
 
   if(is.null(start)) {
-    if(all(!grepl(id, names(x$model))) && !grepl("tstat_[0-9]+", id)) {
+    if(all(!grepl(id, names(x$model))) &&
+      !grepl("tstat_[0-9]+", id) && !grepl("sigma", id)) {
       warning("Cannot determine starting value for the requested 'id' ",
-       "automatically. Consider providing a value via 'start'.")
+        "automatically. Set to zero, consider providing a value via 'start'.")
       start <- 0
     } else {
       start <- exact[1L]
@@ -31,7 +38,7 @@ init.sensitivity <- function(x, start = NULL) {
     cumsum(c(start, -(start - x$initial$lambda)))
   }
 
-  list("initial" = initial, "exact" = exact, "id" = id)
+  return(list("initial" = initial, "exact" = exact, "id" = id))
 }
 
 
@@ -66,7 +73,8 @@ create_object <- function(x, rank, lambda) {
 check_id <- function(id = NULL, lambda) {
   if(is.null(id)) {
     type <- gsub("^([a-z]+).*", "\\1", attr(lambda, "type"))
-    if(type == "custom") {return("custom")}
+    if(grepl("custom", type)) {return("custom")}
+    if(grepl("sigma", type)) {return("sigma")}
     position <- attr(lambda, "position")
     return(paste0(type, "_", position))
   }

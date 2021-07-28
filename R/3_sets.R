@@ -49,6 +49,7 @@ sensitivity_lm <- function(x,
       warning("No variables to marginalise using FWL found.")
     } else {
       x <- update_fwl(data$X, data$y, variables = options$fwl)
+      K <- NCOL(x$X)
     }
   } # Reapplication later is determined by options$fwl_re
 
@@ -105,7 +106,8 @@ sensitivity_lm <- function(x,
     # Update using QR or Sherman-Morrison
     XX_inv <- if((i - 1L) %% options$sm_re != 0) {
       tryCatch(
-        update_inv(step$model$XX_inv, data$X[rm[i - 1L], , drop = FALSE]),
+        update_inv(step$model$XX_inv,
+          get_data(x)$X[rm[i - 1L], , drop = FALSE]),
         error = function(e) {chol2inv(qr.R(qr(X[-rm, , drop = FALSE])))})
     } else {NULL}
     step <- tryCatch(

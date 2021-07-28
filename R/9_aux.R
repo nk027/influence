@@ -77,8 +77,9 @@ update_fwl <- function(X, y, variables, rm = NULL) {
     } else {
       Q_fwl <- qr.Q(qr(X[-rm, -variables, drop = FALSE]))
       y[-rm] <- y[-rm] - Q_fwl %*% crossprod(Q_fwl, y[-rm])
-      X[-rm, ] <- X[-rm, variables, drop = FALSE] - Q_fwl %*%
+      X[-rm, variables] <- X[-rm, variables, drop = FALSE] - Q_fwl %*%
         crossprod(Q_fwl, X[-rm, variables, drop = FALSE])
+      X <- X[, variables]
     }
   }
   return(list("y" = y, "X" = X))

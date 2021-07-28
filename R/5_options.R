@@ -1,7 +1,7 @@
 
 set_options <- function(...,
   p_max = NULL, n_max = NULL,
-  sm_re = 1L, fwl = 0L, fwl_re = 1e6L,
+  sm_re = 1L, fwl = 0L, fwl_re = 1L,
   adaptive = TRUE) {
 
   out <- set_compute(...)
@@ -31,7 +31,7 @@ set_options <- function(...,
 }
 
 
-set_compute <- function(x = c("all", "some", "none"),
+set_compute <- function(x = c("some", "none", "all"),
   hat, beta, sigma, se, tstat, cooksd, dffits, rstudent, covratio) {
 
   x <- match.arg(x)

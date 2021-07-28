@@ -36,11 +36,13 @@ set_lambda <- function(
 
   if(type == "BKW") {
     f <- function(x, ...) {
-      vapply(seq_len(NROW(x$influence$beta_i)), function(i) {
-        crossprod(-x[["beta_i"]][i, ] + x[["lm"]][["beta"]])
+      vapply(seq_len(NROW(x$beta_i)), function(i) {
+        crossprod(-x[["beta_i"]][i, ] + x[["model"]][["beta"]])
       }, numeric(1L)) * sign
     }
     attr(f, "type") <- "BKW"
+    attr(f, "sign") <- sign
+    attr(f, "target") <- target
   } else {
     f <- function(x, ...) {x[[type]][, position] * sign}
     attr(f, "type") <- type
@@ -48,6 +50,23 @@ set_lambda <- function(
     attr(f, "sign") <- sign
   }
   attr(f, "target") <- target
+
+  return(f)
+}
+
+
+set_delta <- function(type = c("less", "leq", "geq", "greater"),
+  f = function(x, y, ...) {NULL}) {
+
+  # Check custom functions
+  if(!is.null(f())) {
+    return(f)
+  }
+
+  # Basic stuff otherwise
+  type <- match.arg(type)
+
+  f <- list("less" = `<`, "leq" = `<=`, "geq" = `>=`, "greater" = `>` )[[type]]
 
   return(f)
 }

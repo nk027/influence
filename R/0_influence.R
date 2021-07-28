@@ -38,7 +38,7 @@ influence_lm <- function(x, rm = NULL,
     y <- data$y
     X <- data$X
 
-    if(!is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
+    if(is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
     R <- qr.R(qr_x)
     r_cond <- rcond(R, norm = "I")
   } else {
@@ -98,7 +98,9 @@ influence_lm <- function(x, rm = NULL,
     "r2" = r2, "fstat" = fstat, "ll" = ll,
     "qr" = qr_x, "XX_inv" = XX_inv, "r_cond" = r_cond)
 
-  if(isTRUE(options$recompute)) {return(list("model" = model, "meta" = meta))}
+  if(isTRUE(options$just_model)) {
+    return(structure(list("model" = model, "meta" = meta), class = "influence"))
+  }
 
 
   # Influence quantities ---
@@ -232,10 +234,10 @@ influence_iv <- function(x, rm = NULL,
     X <- data$X
     Z <- data$Z
 
-    if(!is.null(qr_z <- x$qr1)) {qr_z <- qr(Z)}
+    if(is.null(qr_z <- x$qr1)) {qr_z <- qr(Z)}
     X_proj <- qr.fitted(qr_z, X)
     X_resid <- X - X_proj
-    if(!is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
+    if(is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
     R <- qr.R(qr_x)
   } else {
     y <- data$y[-rm, drop = FALSE]
@@ -294,7 +296,9 @@ influence_iv <- function(x, rm = NULL,
     "r2_first" = r2_first,  "fstat_first" = fstat_first,
     "qr_z" = qr_z, "qr_x" = qr_x, "qr_a" = qr_a)
 
-  if(isTRUE(options$recompute)) {return(list("model" = model, "meta" = meta))}
+  if(isTRUE(options$just_model)) {
+    return(structure(list("model" = model, "meta" = meta), class = "influence"))
+  }
 
 
   # Influence quantities ---
