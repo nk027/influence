@@ -18,12 +18,22 @@ sens.ivreg <- function(x, lambda = set_lambda(),
   }
 }
 
+sens.influence <- function(x, lambda = set_lambda(),
+  options = set_options(), cluster = x$model$cluster, verbose = TRUE) {
+
+  if(x$model$class == "lm") {
+    sens.lm(x$model$x, lambda = lambda, options = options,
+      cluster = cluster, verbose = verbose)
+  } else {
+    sens.ivreg(x$model$x, lambda = lambda, options = options,
+      cluster = cluster, verbose = verbose)
+  }
+}
+
 
 sensitivity_lm <- function(x,
-  lambda = set_lambda(),
-  options = set_options(),
-  cluster = NULL,
-  verbose = TRUE) {
+  lambda = set_lambda(), options = set_options(),
+  cluster = NULL, verbose = TRUE) {
 
   # Inputs ---
 
@@ -150,10 +160,8 @@ sensitivity_lm <- function(x,
 
 
 sensitivity_iv <- function(x,
-  lambda = set_lambda(),
-  options = set_options(),
-  cluster = NULL,
-  verbose = TRUE) {
+  lambda = set_lambda(), options = set_options(),
+  cluster = NULL, verbose = TRUE) {
 
   # Inputs ---
 

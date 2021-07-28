@@ -1,6 +1,21 @@
 
 init <- function(x, ...) {{UseMethod("init", x)}}
 
+init.lm() <- function(x,
+  lambda = set_lambda(), start = start,
+  options = set_compute(), cluster = NULL) {
+
+  x <- infl.lm(x, options = options, cluster = cluster)
+  init.influence(x, lambda = lambda, start = start)
+}
+
+init.ivreg() <- function(x,
+  lambda = set_lambda(), start = start,
+  options = set_compute(), cluster = NULL) {
+
+  x <- infl.ivreg(x, options = options, cluster = cluster)
+  init.influence(x, lambda = lambda, start = start)
+}
 
 init.influence <- function(x, lambda = set_lambda(), start = NULL) {
 

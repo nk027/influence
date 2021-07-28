@@ -37,55 +37,6 @@ get_data.ivreg <- function(x) {
 }
 
 
-# Update inverse
-update_inv <- function(XX_inv, X_rm) {
-
-  if(NROW(X_rm) == 1) {
-    out <- XX_inv + (XX_inv %*% crossprod(X_rm) %*% XX_inv) /
-      as.numeric(1 - X_rm %*% tcrossprod(XX_inv, X_rm))
-  } else {
-    out <- XX_inv + tcrossprod(XX_inv, X_rm) %*%
-      solve(diag(NROW(X_rm)) - X_rm %*% tcrossprod(XX_inv, X_rm),
-      X_rm %*% XX_inv)
-  }
-  if(abs(norm(XX_inv, "I") - norm(out, "I")) > 1e12) {
-    stop("Inverse update likely to suffer from numerical inaccuracy.")
-  }
-  return(out)
-}
-
-# Update crossproduct
-update_cp <- function(XY, X_rm, Y_rm = X_rm) {
-  XY - crossprod(X_rm, Y_rm)
-}
-
-
-# Solve using an upper triangular matrix
-solve_cholesky <- function(R, b) {
-  backsolve(R, forwardsolve(R, b, upper.tri = TRUE, transpose = TRUE))
-}
-
-
-# Update data using Frisch-Waugh-Lovell theorem
-update_fwl <- function(X, y, variables, rm = NULL) {
-  if(!any(variables == 0)) {
-    if(is.null(rm)) {
-      Q_fwl <- qr.Q(qr(X[, -variables, drop = FALSE]))
-      y <- y - Q_fwl %*% crossprod(Q_fwl, y)
-      X <- X[, variables, drop = FALSE] - Q_fwl %*%
-        crossprod(Q_fwl, X[, variables, drop = FALSE])
-    } else {
-      Q_fwl <- qr.Q(qr(X[-rm, -variables, drop = FALSE]))
-      y[-rm] <- y[-rm] - Q_fwl %*% crossprod(Q_fwl, y[-rm])
-      X[-rm, variables] <- X[-rm, variables, drop = FALSE] - Q_fwl %*%
-        crossprod(Q_fwl, X[-rm, variables, drop = FALSE])
-      X <- X[, variables]
-    }
-  }
-  return(list("y" = y, "X" = X))
-}
-
-
 #' Check numeric scalar
 #'
 #' Check whether an object is bounded and coercible to a numeric value.

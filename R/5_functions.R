@@ -1,11 +1,4 @@
 
-rank_influence <- function(x, lambda) {
-  value <- lambda(x)
-  order <- order(value, decreasing = FALSE, method = "radix")
-  cbind("value" = value, "order" = order)
-}
-
-
 set_lambda <- function(
   type = c("beta_i", "sigma_i", "se_i", "tstat_i",
     "cooksd", "dffits", "rstudent", "covratio", "BKW"),

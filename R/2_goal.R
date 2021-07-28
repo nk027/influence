@@ -1,8 +1,38 @@
 
 goal <- function(x, ...) {{UseMethod("goal", x)}}
 
-goal.influence <- function(x, lambda = set_lambda(), delta = set_delta(),
-  n_upper = NULL, n_lower = 0L, target = NULL, ...) {
+goal.lm <- function(x,
+  lambda = set_lambda(), delta = set_delta(),
+  n_upper = NULL, n_lower = 0L, target = NULL,
+  options = set_compute(), cluster = NULL) {
+
+  x <- infl.lm(x, options = options, cluster = cluster)
+  goal(x, lambda = lambda, delta = delta,
+    n_upper = n_upper, n_lower = n_lower, target = target)
+}
+
+goal.ivreg <- function(x,
+  lambda = set_lambda(), delta = set_delta(),
+  n_upper = NULL, n_lower = 0L, target = NULL,
+  options = set_compute(), cluster = NULL) {
+
+  x <- infl.ivreg(x, options = options, cluster = cluster)
+  goal(x, lambda = lambda, delta = delta,
+    n_upper = n_upper, n_lower = n_lower, target = target)
+}
+
+goal.influence <- function(x,
+  lambda = set_lambda(), delta = set_delta(),
+  n_upper = NULL, n_lower = 0L, target = NULL) {
+
+  target(x, lambda = lambda, delta = delta,
+    n_upper = n_upper, n_lower = n_lower, target = target)
+}
+
+
+target <- function(x,
+  lambda = set_lambda(), delta = set_delta(),
+  n_upper = NULL, n_lower = 0L, target = NULL) {
 
   if(is.null(target)) {
     target <- attr(lambda, "target")
