@@ -1,14 +1,21 @@
 
+# Provide methods for `lm`, `ivreg`, and `influence` objects -----
+
 sens <- function(x, ...) {{UseMethod("sens", x)}}
 
-sens.lm <- function(x, lambda = set_lambda(),
-  options = set_options(), cluster = NULL, verbose = TRUE) {
+
+sens.lm <- function(x,
+  lambda = set_lambda(), options = set_options(),
+  cluster = NULL, verbose = TRUE) {
+
   sensitivity_lm(x, lambda = lambda, options = options,
     cluster = cluster, verbose = verbose)
 }
 
-sens.ivreg <- function(x, lambda = set_lambda(),
-  options = set_options(), cluster = NULL, verbose = TRUE) {
+sens.ivreg <- function(x,
+  lambda = set_lambda(), options = set_options(),
+  cluster = NULL, verbose = TRUE) {
+
   if(is.null(get_data(x)$Z)) {
     sensitivity_lm(x, lambda = lambda, options = options,
       cluster = cluster, verbose = verbose)
@@ -18,8 +25,9 @@ sens.ivreg <- function(x, lambda = set_lambda(),
   }
 }
 
-sens.influence <- function(x, lambda = set_lambda(),
-  options = set_options(), cluster = x$model$cluster, verbose = TRUE) {
+sens.influence <- function(x,
+  lambda = set_lambda(), options = set_options(),
+  cluster = x$model$cluster, verbose = TRUE) {
 
   if(x$model$class == "lm") {
     sens.lm(x$model$x, lambda = lambda, options = options,
@@ -31,6 +39,8 @@ sens.influence <- function(x, lambda = set_lambda(),
 }
 
 
+# Workhorse functions for linear and IV models -----
+
 sensitivity_lm <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = NULL, verbose = TRUE) {
@@ -38,19 +48,17 @@ sensitivity_lm <- function(x,
   # Inputs ---
 
   verbose <- isTRUE(verbose)
-
   meta <- list("lambda" = lambda, "options" = options, "cluster" = cluster,
     "model" = x, "class" = "lm")
 
+  # Dimensions
   K <- x$rank
   N <- K + x$df.residual
-
   # Iterations
   n_max <- check_iterations(N, options$n_max, options$p_max)
-
   # Cluster for clustered standard errors
   cluster <- check_cluster(cluster, N)
-
+  # Get data
   data <- get_data(x)
 
   # Reduce covariates using the Frisch-Waugh-Lovell theorem
@@ -66,13 +74,14 @@ sensitivity_lm <- function(x,
 
   # Start ---
 
+  # First calculation
   step <- influence_lm(x, options = options, cluster = cluster)
-  rank <- rank_influence(step, lambda)
+  rank <- rank_influence(step, lambda = lambda)
 
   # Prepare outputs
   idx <- seq.int(N)
   rm <- vector("numeric", n_max)
-
+  # List with values wrt lambda, the model, and the initial approximation
   out <- structure(list(
     "influence" = data.frame(
       "N" = seq.int(N, N - n_max),
@@ -92,11 +101,13 @@ sensitivity_lm <- function(x,
     "meta" = meta
   ), class = "sensitivity")
 
+  # Fill for step one
   rm[1L] <- rank[1L, "order"]
   out$model[1, ] <- c(N,
     step$model$sigma, step$model$beta, step$model$se,
     step$model$r2, step$model$fstat, step$model$ll)
 
+  # We're done if there's only one removal
   if(n_max == 1L) {return(out)}
 
 
@@ -105,38 +116,34 @@ sensitivity_lm <- function(x,
   start <- Sys.time()
   if(verbose) {pb <- txtProgressBar(min = 2L, max = n_max, style = 3L)}
 
-  # Loop
+  # Loop start >
   for(i in seq.int(2L, n_max + 1L)) {
 
     # Reorthogonalise FWL
     if(!any(options$fwl == 0) && (i - 1L) %% options$fwl_re == 0) {
       x <- update_fwl(data$X, data$y, variables = options$fwl, rm = rm)
     }
-
-    # Update using QR or Sherman-Morrison
+    # Update XX_inv if we're using Sherman-Morrison
     XX_inv <- if((i - 1L) %% options$sm_re != 0) {
-      tryCatch(
-        update_inv(step$model$XX_inv,
-          get_data(x)$X[rm[i - 1L], , drop = FALSE]),
-        error = function(e) {chol2inv(qr.R(qr(X[-rm, , drop = FALSE])))})
+      tryCatch(update_inv(step$model$XX_inv,
+        X_rm = get_data(x)$X[rm[i - 1L], , drop = FALSE]),
+        error = function(e) {
+          chol2inv(qr.R(qr(X[-rm, , drop = FALSE]))) # More robust QR
+        })
     } else {NULL}
-    step <- tryCatch(
-      influence_lm(x, rm,
-        options = options, cluster = cluster, XX_inv = XX_inv),
+    # Calculate new values
+    step <- tryCatch(influence_lm(x,
+      rm = rm, options = options, cluster = cluster, XX_inv = XX_inv),
       error = function(e) {
         message("\nComputation failed at step ", i, " with:\n", e); e
       })
-    if(inherits(step, "error")) {break}
+    if(inherits(step, "error")) {break} # Exit loop
     rank <- rank_influence(step, lambda)
+    # Find observation to remove next
+    rm[i] <- idx[-rm][rank[1L, "order"]] # Index is kept constant
+    rm_val <- rank[rank[1L, "order"], "value"]
 
     # Store results
-    if(options$adaptive) {
-      rm[i] <- idx[-rm][rank[1L, "order"]] # Index manually kept constant
-      rm_val <- rank[rank[1L, "order"], "value"]
-    } else {
-      rm[i] <- out$initial$id[i] # Initial index
-      rm_val <- out$initial$lambda[i]
-    }
     out$influence$id[i] <- rm[i]
     out$influence$lambda[i] <- rm_val
     out$model[i, ] <- c(N - i + 1,
@@ -145,6 +152,7 @@ sensitivity_lm <- function(x,
 
     if(verbose) {setTxtProgressBar(pb, i)}
   }
+  # < Loop end
 
   timer <- format(Sys.time() - start)
   if(verbose) {close(pb); cat("Calculations took ", timer, ".\n", sep = "")}
@@ -169,30 +177,30 @@ sensitivity_iv <- function(x,
   meta <- list("lambda" = lambda, "options" = options, "cluster" = cluster,
     "model" = x, "class" = "ivreg")
 
+  # Dimensions
   N <- x$n
   K <- if(is.null(x$p)) {x$rank} else {x$p}
 
   # Iterations
   n_max <- check_iterations(N, options$n_max, options$p_max)
-
   # Cluster for clustered standard errors
   cluster <- check_cluster(cluster, N)
-
-  if(!any(options$fwl == 0)) {
-    warning("Frisch-Waugh-Lovell not implemented for IV.")
+  if(!any(options$fwl == 0) && options$sm_re != 1L) {
+    warning("Frisch-Waugh-Lovell and Sherman-Morrison not implemented for IV.")
   }
 
 
   # Start ---
 
+  # First calculation
   step <- influence_iv(x, options = options, cluster = cluster)
-  rank <- rank_influence(step, lambda)
+  rank <- rank_influence(step, lambda = lambda)
 
   # Prepare outputs
   idx <- seq.int(N)
   rm <- vector("numeric", n_max)
-
   obs <- rank[seq.int(0L, n_max + 1L), "order"]
+  # List with values wrt lambda, the model, and the initial approximation
   out <- structure(list(
     "influence" = data.frame(
       "N" = seq.int(N, N - n_max),
@@ -212,6 +220,7 @@ sensitivity_iv <- function(x,
     "meta" = meta
   ), class = "sensitivity")
 
+  # Fill for step one
   rm[1L] <- rank[1L, "order"]
   out$model[1, ] <- c(N,
     step$model$sigma, step$model$beta, step$model$se,
@@ -224,26 +233,22 @@ sensitivity_iv <- function(x,
   start <- Sys.time()
   if(verbose) {pb <- txtProgressBar(min = 2L, max = n_max, style = 3L)}
 
-  # Loop
+  # Loop start >
   for(i in seq.int(2L, n_max + 1L)) {
 
     # No FWL or SM for IV models
-    step <- tryCatch(
-      influence_iv(x, rm, options = options, cluster = cluster),
+    step <- tryCatch(influence_iv(x,
+      rm = rm, options = options, cluster = cluster),
       error = function(e) {
         message("\nComputation failed at step ", i, " with:\n", e); e
       })
-    if(inherits(step, "error")) {break}
+    if(inherits(step, "error")) {break} # Exit loop
     rank <- rank_influence(step, lambda)
+    # Find observation to remove next
+    rm[i] <- idx[-rm][rank[1L, "order"]] # Index kept constant
+    rm_val <- rank[rank[1L, "order"], "value"]
 
     # Store results
-    if(options$adaptive) {
-      rm[i] <- idx[-rm][rank[1L, "order"]] # Index kept constant
-      rm_val <- rank[rank[1L, "order"], "value"]
-    } else {
-      rm[i] <- out$initial$id[i]
-      rm_val <- out$initial$lambda[i]
-    }
     out$influence$id[i] <- rm[i]
     out$influence$lambda[i] <- rm_val
     out$model[i, ] <- c(N - i + 1,
@@ -253,6 +258,7 @@ sensitivity_iv <- function(x,
 
     if(verbose) {setTxtProgressBar(pb, i)}
   }
+  # < Loop end
 
   timer <- format(Sys.time() - start)
   if(verbose) {close(pb); cat("Calculations took ", timer, ".\n", sep = "")}

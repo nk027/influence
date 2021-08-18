@@ -1,9 +1,12 @@
 
+# Provide methods for `lm`, `ivreg`, and `matrix` objects -----
+
 infl <- function(x, ...) {{UseMethod("infl", x)}}
 
 
 infl.matrix <- function(x, y, z,
   rm = NULL, options = set_compute(), cluster = NULL) {
+
   if(missing(z)) {
     influence_lm(list("x" = x, "y" = y),
       rm = rm, options = options, cluster = cluster)
@@ -13,11 +16,15 @@ infl.matrix <- function(x, y, z,
   }
 }
 
-infl.lm <- function(x, rm = NULL, options = set_compute(), cluster = NULL) {
+infl.lm <- function(x,
+  rm = NULL, options = set_compute(), cluster = NULL) {
+
   influence_lm(x, rm = rm, options = options, cluster = cluster)
 }
 
-infl.ivreg <- function(x, rm = NULL, options = set_compute(), cluster = NULL) {
+infl.ivreg <- function(x,
+  rm = NULL, options = set_compute(), cluster = NULL) {
+
   if(is.null(get_data(x)$Z)) {
     influence_lm(x, rm = rm, options = options, cluster = cluster)
   } else {
@@ -26,35 +33,35 @@ infl.ivreg <- function(x, rm = NULL, options = set_compute(), cluster = NULL) {
 }
 
 
-influence_lm <- function(x, rm = NULL,
-  options, cluster = NULL, XX_inv = NULL) {
+# Workhorse functions for linear and IV models -----
+
+influence_lm <- function(x,
+  rm = NULL, options, cluster = NULL, XX_inv = NULL) {
 
   # Inputs ---
 
   meta <- list("model" = x, "cluster" = cluster, "class" = "lm")
 
   data <- get_data(x)
-  if(is.null(rm)) {
+  if(is.null(rm)) { # Reuse existent quantities
     y <- data$y
     X <- data$X
 
     if(is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
     R <- qr.R(qr_x)
     r_cond <- rcond(R, norm = "I")
-  } else {
+  } else { # Compute without rows
     y <- data$y[-rm, drop = FALSE]
     X <- data$X[-rm, , drop = FALSE]
-
-    if(is.null(XX_inv)) { # Avoid recomputation if (X'X)⁻¹ is provided
+    if(!is.null(cluster)) {cluster <- cluster[-rm, , drop = FALSE]}
+    if(is.null(XX_inv)) { # Avoid recomputation if XX_inv is provided
       qr_x <- qr(X)
-      if(qr_x$rank != NCOL(X)) {stop("Removal resulted in loss of full rank.")}
+      if(qr_x$rank != NCOL(X)) {stop("Removal resulted in rank deficiency.")}
       R <- qr.R(qr_x)
       r_cond <- rcond(R, norm = "I")
     } else {
       qr_x <- R <- r_cond <- NULL
-      cat("a")
     }
-    if(!is.null(cluster)) {cluster <- cluster[-rm, , drop = FALSE]}
   }
 
 
@@ -237,7 +244,7 @@ influence_iv <- function(x, rm = NULL,
     if(is.null(qr_z <- x$qr1)) {qr_z <- qr(Z)}
     X_proj <- qr.fitted(qr_z, X)
     X_resid <- X - X_proj
-    if(is.null(qr_x <- x$qr)) {qr_x <- qr(X)}
+    if(is.null(qr_x <- x$qr)) {qr_x <- qr(X_proj)}
     R <- qr.R(qr_x)
   } else {
     y <- data$y[-rm, drop = FALSE]

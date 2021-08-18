@@ -2,47 +2,41 @@
 goal <- function(x, ...) {{UseMethod("goal", x)}}
 
 goal.lm <- function(x,
-  lambda = set_lambda(), delta = set_delta(),
-  n_upper = NULL, n_lower = 0L, target = NULL,
-  options = set_compute(), cluster = NULL) {
+  lambda = set_lambda(), target = set_target(),
+  n_upper = NULL, n_lower = 0L, options = set_compute(), cluster = NULL) {
 
   x <- infl.lm(x, options = options, cluster = cluster)
-  goal(x, lambda = lambda, delta = delta,
-    n_upper = n_upper, n_lower = n_lower, target = target)
+  goal.influence(x, lambda = lambda, target = target,
+    n_upper = n_upper, n_lower = n_lower)
 }
 
 goal.ivreg <- function(x,
-  lambda = set_lambda(), delta = set_delta(),
-  n_upper = NULL, n_lower = 0L, target = NULL,
-  options = set_compute(), cluster = NULL) {
+  lambda = set_lambda(), target = set_target(),
+  n_upper = NULL, n_lower = 0L, options = set_compute(), cluster = NULL) {
 
   x <- infl.ivreg(x, options = options, cluster = cluster)
-  goal(x, lambda = lambda, delta = delta,
-    n_upper = n_upper, n_lower = n_lower, target = target)
+  goal.influence(x, lambda = lambda, target = target,
+    n_upper = n_upper, n_lower = n_lower)
 }
 
 goal.influence <- function(x,
-  lambda = set_lambda(), delta = set_delta(),
-  n_upper = NULL, n_lower = 0L, target = NULL) {
+  lambda = set_lambda(), target = set_target(),
+  n_upper = NULL, n_lower = 0L) {
 
-  target(x, lambda = lambda, delta = delta,
-    n_upper = n_upper, n_lower = n_lower, target = target)
+  compute_target(x, lambda = lambda, target = target,
+    n_upper = n_upper, n_lower = n_lower)
 }
 
 
-target <- function(x,
-  lambda = set_lambda(), delta = set_delta(),
-  n_upper = NULL, n_lower = 0L, target = NULL) {
+compute_target <- function(x,
+  lambda = set_lambda(), target = set_target(),
+  n_upper = NULL, n_lower = 0L) {
 
-  if(is.null(target)) {
-    target <- attr(lambda, "target")
-  } else {
-    target <- num_check(target, -Inf, Inf, msg = "Please check the target.")
-  }
+  value <- attr(target, "target")
 
   if(is.null(n_upper)) {
     initial <- init(x, lambda = lambda)
-    n_upper <- which(delta(initial$initial, target))[1L] - 1L
+    n_upper <- which(target(initial$initial, value))[1L] - 1L
     if(is.na(n_upper)) {
       stop("Target not within the initial approximation's reach. ",
         "Consider setting 'n_upper' manually.")
@@ -57,14 +51,14 @@ target <- function(x,
 
   # First step -- check the target is achievable
   re <- re_infl(x, rm[seq.int(n_upper)])
-  if(!delta(init(re, lambda)$exact[1L], target)) {
+  if(!target(init(re, lambda)$exact[1L], value)) {
     stop("Target change not achieved at the upper bound.")
   }
 
   while(n_lower <= n_upper) {
     n_consider <- floor((n_lower + n_upper) / 2)
     re <- re_infl(x, rm[seq.int(n_consider)])
-    if(!delta(init(re, lambda)$exact[1L], target)) {
+    if(!target(init(re, lambda)$exact[1L], value)) {
       n_lower <- n_consider + 1L
     } else {
       n_upper <- n_consider - 1L

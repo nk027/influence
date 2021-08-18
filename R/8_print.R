@@ -5,7 +5,19 @@ print.influence <- function(x, ...) {
   invisible(x)
 }
 
-print.sensitivity <- function(x, ...) {
+print.init <- function(x, ...) {
+  cat("Sensitivity object\n")
+  print(str(x[c("influence", "model")]))
+  invisible(x)
+}
+
+print.goal <- function(x, ...) {
+  cat("Sensitivity object\n")
+  print(str(x[c("influence", "model")]))
+  invisible(x)
+}
+
+print.sens <- function(x, ...) {
   cat("Sensitivity object\n")
   print(str(x[c("influence", "model")]))
   invisible(x)

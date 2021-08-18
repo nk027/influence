@@ -4,15 +4,11 @@ set_lambda <- function(
     "cooksd", "dffits", "rstudent", "covratio", "BKW"),
   position = 1L,
   sign = 1L,
-  target = 0L,
   f = function(x, ...) {NULL}) {
-
-  target <- num_check(target, -Inf, Inf, msg = "Please check the target.")
 
   # Check custom functions
   if(!is.null(f())) {
     attr(f, "type") <- "custom"
-    attr(f, "target") <- target
     return(f)
   }
 
@@ -35,31 +31,30 @@ set_lambda <- function(
     }
     attr(f, "type") <- "BKW"
     attr(f, "sign") <- sign
-    attr(f, "target") <- target
   } else {
     f <- function(x, ...) {x[[type]][, position] * sign}
     attr(f, "type") <- type
     attr(f, "position") <- position
     attr(f, "sign") <- sign
   }
-  attr(f, "target") <- target
 
   return(f)
 }
 
 
-set_delta <- function(type = c("less", "leq", "geq", "greater"),
+set_target <- function(target = 0,
+  type = c("less", "leq", "geq", "greater"),
   f = function(x, y, ...) {NULL}) {
 
+  target <- num_check(target, -Inf, Inf, msg = "Please check the target.")
+
   # Check custom functions
-  if(!is.null(f())) {
-    return(f)
+  if(is.null(f())) {
+    type <- match.arg(type)
+    f <- list("less" = `<`, "leq" = `<=`, "geq" = `>=`, "greater" = `>` )[[type]]
   }
 
-  # Basic stuff otherwise
-  type <- match.arg(type)
-
-  f <- list("less" = `<`, "leq" = `<=`, "geq" = `>=`, "greater" = `>` )[[type]]
+  attr(f, "target") <- target
 
   return(f)
 }

@@ -1,17 +1,4 @@
 
-print.influence <- function(x, ...) {
-  cat("Influence object\n")
-  print(str(x))
-  invisible(x)
-}
-
-print.sensitivity <- function(x, ...) {
-  cat("Sensitivity object\n")
-  print(str(x[c("influence", "model")]))
-  invisible(x)
-}
-
-
 plot.influence <- function(x,
   type = c("beta_i", "se_i"), position,
   ...) {
@@ -32,17 +19,17 @@ plot.influence <- function(x,
 
 
 plot.sensitivity <- function(x,
-  type = c("path", "influence"), ...) {
+  type = c("path", "masking"), ...) {
 
   type <- match.arg(type)
-  if(type == "influence") {
-    return(.plot_influence(x, ...))
+  if(type == "masking") {
+    return(.plot_masking(x, ...))
   } else if(type == "path") {
     return(.plot_path(x, ...))
   }
 }
 
-.plot_influence <- function(x) {
+.plot_masking <- function(x) {
 
   masking <- vector("numeric", nrow(x$influence))
   for(i in seq_len(nrow(x$influence))) {

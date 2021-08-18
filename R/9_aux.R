@@ -60,7 +60,6 @@ num_check <- function(
   return(fun(x))
 }
 
-
 #' @noRd
 int_check <- function(
   x, min = 0L, max = Inf,
@@ -70,6 +69,7 @@ int_check <- function(
 }
 
 
+#' @noRd
 check_cluster <- function(cluster, N) {
   if(!is.null(cluster)) {
     cluster <- as.data.frame(cluster)
@@ -80,6 +80,7 @@ check_cluster <- function(cluster, N) {
 }
 
 
+#' @noRd
 check_iterations <- function(N, n_max, p_max) {
   return(min(N - 1L, n_max, floor(N * p_max)))
 }

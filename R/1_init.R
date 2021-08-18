@@ -1,16 +1,16 @@
 
 init <- function(x, ...) {{UseMethod("init", x)}}
 
-init.lm() <- function(x,
-  lambda = set_lambda(), start = start,
+init.lm <- function(x,
+  lambda = set_lambda(), start = NULL,
   options = set_compute(), cluster = NULL) {
 
   x <- infl.lm(x, options = options, cluster = cluster)
   init.influence(x, lambda = lambda, start = start)
 }
 
-init.ivreg() <- function(x,
-  lambda = set_lambda(), start = start,
+init.ivreg <- function(x,
+  lambda = set_lambda(), start = NULL,
   options = set_compute(), cluster = NULL) {
 
   x <- infl.ivreg(x, options = options, cluster = cluster)
@@ -22,16 +22,16 @@ init.influence <- function(x, lambda = set_lambda(), start = NULL) {
   rank <- rank_influence(x, lambda = lambda)
   out <- create_object(x, rank = rank, lambda = lambda)
 
-  initial(out, start = start)
+  compute_initial(out, start = start)
 }
 
 init.sensitivity <- function(x, start = NULL) {
 
-  initial(x, start = start)
+  compute_initial(x, start = start)
 }
 
 
-initial <- function(x, start = NULL) {
+compute_initial <- function(x, start = NULL) {
 
   id <- check_id(NULL, lambda = x$meta$lambda)
   exact <- get_exact(x, id)
