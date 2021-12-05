@@ -23,16 +23,17 @@ goal.influence <- function(x,
   lambda = set_lambda(), target = set_target(),
   n_upper = NULL, n_lower = 0L) {
 
-  compute_target(x, lambda = lambda, target = target,
+  compute_goal(x, lambda = lambda, target = target,
     n_upper = n_upper, n_lower = n_lower)
 }
 
 
-compute_target <- function(x,
+compute_goal <- function(x,
   lambda = set_lambda(), target = set_target(),
   n_upper = NULL, n_lower = 0L) {
 
   value <- attr(target, "target")
+  N <- NROW(x$hat)
 
   if(is.null(n_upper)) {
     initial <- init(x, lambda = lambda)
@@ -42,7 +43,7 @@ compute_target <- function(x,
         "Consider setting 'n_upper' manually.")
     }
   } else {
-    n_upper <- num_check(n_upper, 1L, NROW(x$hat),
+    n_upper <- num_check(n_upper, 1L, N,
       msg = "Choose a valid upper bound for observations to remove.")
   }
 
@@ -51,9 +52,8 @@ compute_target <- function(x,
 
   # First step -- check the target is achievable
   re <- re_infl(x, rm[seq.int(n_upper)])
-  if(!target(init(re, lambda)$exact[1L], value)) {
-    stop("Target change not achieved at the upper bound.")
-  }
+  achievable <- target(init(re, lambda)$exact[1L], value)
+  if(!achievable) {stop("Target change not achieved at the upper bound.")}
 
   while(n_lower <= n_upper) {
     n_consider <- floor((n_lower + n_upper) / 2)
@@ -65,20 +65,9 @@ compute_target <- function(x,
     }
   }
 
-  return(list(
+  structure(list(
     "n_removed" = n_consider, "p_removed" = n_consider / N, "target" = target,
-    "id" = rm, "lambda" = rank[, "value"], "result" = re
-  ))
-}
-
-
-re_infl <- function(x, rm) {
-  if(x$meta$class == "lm") {
-    re <- influence_lm(x$meta$model, rm = rm,
-      options = list("just_model" = TRUE), cluster = x$meta$cluster)
-  } else {
-    re <- influence_iv(x$meta$model, rm = rm,
-      options = list("just_model" = TRUE), cluster = x$meta$cluster)
-  }
-  return(re)
+    "lambda" = rank[, "value"], "id" = rm,
+    "model" = re
+  ), class = "goal")
 }

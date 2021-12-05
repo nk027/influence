@@ -125,7 +125,7 @@ influence_lm <- function(x,
   }
 
   # DFBETA
-  beta_i <- if(isTRUE(options$sigma)) {
+  beta_i <- if(isTRUE(options$beta)) {
     if(!is.null(R)) {
       t(t(t(-solve_cholesky(R, t(X))) *
         ifelse(hat == 1, 0, res / (1 - hat))[, 1L]) + beta)
@@ -219,7 +219,8 @@ influence_lm <- function(x,
   # Return ---
 
   structure(list(
-    "model" = model, "hat" = hat,
+    "model" = model,
+    "hat" = hat,
     "beta_i" = beta_i, "sigma_i" = sigma_i, "se_i" = se_i, "tstat_i" = tstat_i,
     "cooksd" = cooksd, "dffits" = dffits,
     "rstudent" = rstudent, "covratio" = covratio,
@@ -441,7 +442,8 @@ influence_iv <- function(x, rm = NULL,
   # Return ---
 
   structure(list(
-    "model" = model, "hat" = hat,
+    "model" = model,
+    "hat" = hat,
     "beta_i" = beta_i, "sigma_i" = sigma_i, "se_i" = se_i, "tstat_i" = tstat_i,
     "cooksd" = cooksd, "dffits" = dffits,
     "rstudent" = rstudent, "covratio" = covratio,
