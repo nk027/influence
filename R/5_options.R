@@ -32,22 +32,23 @@ set_options <- function(...,
 
 
 set_compute <- function(x = c("some", "none", "all"),
-  hat, beta, sigma, se, tstat, cooksd, dffits, rstudent, covratio) {
+  hat, beta, sigma, se, tstat, cooksd, dffits, rstudent, covratio, cluster) {
 
   x <- match.arg(x)
 
   out <- if(x == "all") {
     list("hat" = TRUE, "beta" = TRUE, "sigma" = TRUE,
       "se" = TRUE, "tstat" = TRUE,
-      "cooksd" = TRUE, "dffits" = TRUE, "rstudent" = TRUE, "covratio" = TRUE)
+      "cooksd" = TRUE, "dffits" = TRUE, "rstudent" = TRUE, "covratio" = TRUE,
+      "cluster" = TRUE)
   } else if(x == "some") {
     list("hat" = TRUE, "beta" = TRUE, "sigma" = TRUE,
       "se" = FALSE, "tstat" = FALSE, "cooksd" = FALSE, "dffits" = FALSE,
-      "rstudent" = FALSE, "covratio" = FALSE)
+      "rstudent" = FALSE, "covratio" = FALSE, "cluster" = FALSE)
   } else if(x == "none") {
     list("hat" = FALSE, "beta" = FALSE, "sigma" = FALSE,
       "se" = FALSE, "tstat" = FALSE, "cooksd" = FALSE, "dffits" = FALSE,
-      "rstudent" = FALSE, "covratio" = FALSE)
+      "rstudent" = FALSE, "covratio" = FALSE, "cluster" = FALSE)
   }
 
   if(!missing(hat)) {out$hat <- isTRUE(hat)}

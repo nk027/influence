@@ -149,7 +149,7 @@ influence_lm <- function(x,
   }
 
   # Standard errors
-  if(isTRUE(options$se) && is.null(cluster)) {
+  if(isTRUE(options$se) && (is.null(cluster) || isFALSE(options$cluster))) {
     se_i <- vapply(idx, function(i) {
       inv_i <- tryCatch(update_inv(XX_inv, X[i, , drop = FALSE]),
         error = function(e) {matrix(NaN, nrow(X), ncol(X))})
@@ -272,7 +272,7 @@ influence_iv <- function(x, rm = NULL,
 
   # Coefficients
   beta <- qr.coef(qr_x, y)
-  qr_a <- qr(crossprod(X, X_proj))
+  qr_a <- qr(crossprod(X, X_proj), tol = 1e-8)
   XX_inv <- chol2inv(R)
 
   res <- as.numeric(y - X %*% beta)
@@ -375,7 +375,7 @@ influence_iv <- function(x, rm = NULL,
     ZX <- crossprod(Z, X)
     ZZ_inv <- chol2inv(qr.R(qr_z))
     se_i <- vapply(idx, function(i) {
-      res_i <- res[-i] + as.numeric(X[-i, ] %*% t(beta_i[i, , drop = FALSE]))
+      res_i <- res[-i] + as.numeric(X[-i, ] %*% t(beta - beta_i[i, , drop = FALSE]))
       inv_i <- tryCatch(update_inv(ZZ_inv, Z[i, , drop = FALSE]),
         error = function(e) {matrix(NaN, nrow(X), ncol(X))})
       proj_i <- Z[-i, ] %*% inv_i %*%

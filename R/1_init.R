@@ -5,6 +5,9 @@ init.lm <- function(x,
   lambda = set_lambda(), start = NULL,
   options = set_compute(), cluster = NULL) {
 
+  # Cluster for clustered standard errors
+  cluster <- check_cluster(cluster, x$rank + x$df.resid)
+
   x <- infl.lm(x, options = options, cluster = cluster)
   init.influence(x, lambda = lambda, start = start)
 }
@@ -12,6 +15,9 @@ init.lm <- function(x,
 init.ivreg <- function(x,
   lambda = set_lambda(), start = NULL,
   options = set_compute(), cluster = NULL) {
+
+  # Cluster for clustered standard errors
+  cluster <- check_cluster(cluster, x$n)
 
   x <- infl.ivreg(x, options = options, cluster = cluster)
   init.influence(x, lambda = lambda, start = start)

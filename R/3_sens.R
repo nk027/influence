@@ -140,8 +140,13 @@ sensitivity_lm <- function(x,
     if(inherits(step, "error")) {break} # Exit loop
     rank <- rank_influence(step, lambda)
     # Find observation to remove next
-    rm[i] <- idx[-rm][rank[1L, "order"]] # Index is kept constant
-    rm_val <- rank[rank[1L, "order"], "value"]
+    if(isTRUE(options$adaptive)) {
+      rm[i] <- idx[-rm][rank[1L, "order"]] # Index is kept constant
+      rm_val <- rank[rank[1L, "order"], "value"]
+    } else {
+      rm_val <- rank[which(idx[-rm] == out$initial$id[i]), "value"]
+      rm[i] <- out$initial$id[i]
+    }
 
     # Store results
     out$influence$id[i] <- rm[i]

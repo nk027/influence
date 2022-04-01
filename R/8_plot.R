@@ -46,7 +46,7 @@ plot.sensitivity <- function(x,
   invisible(x)
 }
 
-.plot_path <- function(x, n = 0L) {
+.plot_path <- function(x, n = 0L, threshold = 2) {
 
   z <- init(x)
   z$exact <- z$exact[!is.nan(z$exact)]
@@ -54,35 +54,37 @@ plot.sensitivity <- function(x,
 
   N <- x$influence$N[1L]
 
-  poi <- list("exact" = c(which(diff(sign(z$exact)) != 0) + 1,
-      which(diff(abs(z$exact) > 2) != 0) + 1),
-    "initial" = c(which(diff(sign(z$initial)) != 0) + 1,
-      which(diff(abs(z$initial) > 2) != 0) + 1))
+  poi <- list("exact" = c(which(diff(sign(z$exact)) != 0) + 0,
+      which(diff(abs(z$exact) > threshold) != 0) + 0),
+    "initial" = c(which(diff(sign(z$initial)) != 0) + 0,
+      which(diff(abs(z$initial) > threshold) != 0) + 0))
 
   if(n > 0L) {
     ylim <- c(min(z$exact[seq.int(n)], z$initial[seq.int(n)]),
       max(z$exact[seq.int(n)], z$initial[seq.int(n)]))
-    plot(z$initial[seq.int(n)], type = "l", col = "gray", lty = 2,
-      ylim = ylim, ylab = "Value", xlab = "Index / Percent")
-    lines(z$exact)
+    plot(z$initial[seq.int(n)], x = seq_along(z$exact) - 1,
+      type = "l", col = "gray", lty = 2, ylim = ylim,
+      ylab = "Value", xlab = "Index / Percent")
+    lines(z$exact, x = seq_along(z$exact) - 1)
     axis_at <- axTicks(3L)
     axis_lab <- round((seq(0, n) / N)[axTicks(3L)], 2)
     if(any(axis_at == 0)) {axis_lab <- c(0, axis_lab)}
     axis(3L, at = axis_at, labels = axis_lab)
   } else {
     ylim <- c(min(z$exact, z$initial), max(z$exact, z$initial))
-    plot(z$exact, type = "l", ylab = "Value",
+    plot(z$exact, x = seq_along(z$exact) - 1, type = "l", ylab = "Value",
       ylim = ylim, xlab = "Index / Percent")
-    lines(z$initial, col = "gray", lty = 2)
+    lines(z$initial, x = seq_along(z$initial) - 1, col = "darkgray", lty = 2)
     axis_at <- axTicks(3L)
     axis_lab <- round((seq(0, N) / N)[axTicks(3L)], 2)
     if(any(axis_at == 0)) {axis_lab <- c(0, axis_lab)}
     axis(3L, at = axis_at, labels = axis_lab)
   }
   grid()
-  abline(v = poi$initial, col = "gray", lty = 2)
-  abline(v = poi$exact)
-  axis(1L, at = poi$exact, labels = TRUE)
+  abline(v = poi$exact, lty = 1)
+  abline(v = poi$initial + .05, col = "darkgray", lty = 2)
+  axis(1L, at = poi$initial, labels = TRUE, tick = FALSE, padj = 1)
+  axis(1L, at = poi$exact, labels = TRUE, font = 2, padj = -1)
   abline(h = 0)
 
   invisible(x)
