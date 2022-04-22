@@ -46,7 +46,7 @@ plot.sensitivity <- function(x,
   invisible(x)
 }
 
-.plot_path <- function(x, n = 0L, threshold = 2) {
+.plot_path <- function(x, n = 0L, threshold = qnorm(.975)) {
 
   z <- init(x)
   z$exact <- z$exact[!is.nan(z$exact)]
@@ -71,7 +71,7 @@ plot.sensitivity <- function(x,
     if(any(axis_at == 0)) {axis_lab <- c(0, axis_lab)}
     axis(3L, at = axis_at, labels = axis_lab)
   } else {
-    ylim <- c(min(z$exact, z$initial), max(z$exact, z$initial))
+    ylim <- c(min(z$exact, z$initial), max(z$exact)) #, z$initial))
     plot(z$exact, x = seq_along(z$exact) - 1, type = "l", ylab = "Value",
       ylim = ylim, xlab = "Index / Percent")
     lines(z$initial, x = seq_along(z$initial) - 1, col = "darkgray", lty = 2)

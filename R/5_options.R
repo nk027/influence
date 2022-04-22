@@ -60,6 +60,7 @@ set_compute <- function(x = c("some", "none", "all"),
   if(!missing(dffits)) {out$dffits <- isTRUE(dffits)}
   if(!missing(rstudent)) {out$rstudent <- isTRUE(rstudent)}
   if(!missing(covratio)) {out$covratio <- isTRUE(covratio)}
+  if(!missing(cluster)) {out$cluster <- isTRUE(cluster)}
 
   if(out$se) {out$beta <- out$sigma <- TRUE}
   if(out$tstat) {out$se <- out$beta <- out$sigma <- TRUE}

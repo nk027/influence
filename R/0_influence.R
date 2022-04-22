@@ -360,7 +360,7 @@ influence_iv <- function(x, rm = NULL,
   }
 
   # Standard errors
-  if(isTRUE(options$se) && is.null(cluster)) {
+  if(isTRUE(options$se) && (is.null(cluster) || isFALSE(options$cluster))) {
     ZX <- crossprod(Z, X)
     ZZ_inv <- chol2inv(qr.R(qr_z))
     se_i <- vapply(idx, function(i) {

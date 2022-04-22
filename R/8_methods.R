@@ -1,5 +1,5 @@
 
-summary.sensitivity <- function(x, n = 0, threshold = 2, ...) {
+summary.sensitivity <- function(x, n = 0, threshold = qnorm(.975), ...) {
 
   n <- min(x$influence$N[1L], if(isTRUE(n <= 0)) Inf else n)
 
