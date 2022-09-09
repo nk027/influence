@@ -1,6 +1,10 @@
 
+#' Get usable design matrices from model objects
+#'
+#' @noRd
 get_data <- function(x, ...) {{UseMethod("get_data", x)}}
 
+#' @noRd
 get_data.list <- function(x) {
   y <- x$y
   X <- if(is.null(x$x)) {
@@ -12,6 +16,7 @@ get_data.list <- function(x) {
   return(list("y" = y, "X" = X, "Z" = Z))
 }
 
+#' @noRd
 get_data.lm <- function(x) {
   if(!is.null(mf <- x$model)) {
     mf <- x$model
@@ -23,6 +28,7 @@ get_data.lm <- function(x) {
   return(list("y" = y, "X" = as.matrix(X)))
 }
 
+#' @noRd
 get_data.ivreg <- function(x) {
   if(!is.null(mf <- x$model)) {
     mf <- x$model

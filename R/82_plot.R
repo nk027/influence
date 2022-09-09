@@ -1,23 +1,45 @@
 
+#' Boxplots for influence objects
+#'
+#' @param x A \code{influence} object, obtained from \code{\link{infl}}.
+#' @param type Optional character vector with the type of measure to plot.
+#' @param position Numeric vector. Position of the variables.
+#' @param ... Not used.
+#'
+#' @return Returns \emph{x} invisibly.
+#'
+#' @export
 plot.influence <- function(x,
-  type = c("beta_i", "se_i"), position,
+  type = c("beta_i", "se_i", "tstat_i"), position,
   ...) {
 
   type <- match.arg(type)
+  title <- paste0(c("beta_i" = "Beta", "se_i" = "Standard error",
+    "tstat_i" = "t statistic")[type], " variation after one removal")
 
   if(missing(position)) {position <- seq_len(NCOL(x[[type]]))}
   n_plots <- length(position)
-  boxplot(x[[type]][, position], main = "Variation after one removal")
+  boxplot(x[[type]][, position], main = title)
   xl <- seq(n_plots) - 0.45
   xr <- seq(n_plots) + 0.45
   segments(x0 = xl, x1 = xr,
-    y0 = x$lm[[gsub("([a-z]+)_i", "\\1", type)]][position],
+    y0 = x$model[[gsub("([a-z]+)_i", "\\1", type)]][position],
     col = "#800000", lty = 3, lwd = par("lwd") * 2)
 
   invisible(x)
 }
 
 
+#' Plotting method for sensitivity objects
+#'
+#' @param x A \code{sensitivity} object, obtained from \code{\link{sens}}.
+#' @param type Optional character vector with the type of plot desired.
+#' @param ... Dispatched internally. Argument \code{n} to limit the number of
+#' plotted removals, and \code{threshold} to mark influence thresholds.
+#'
+#' @return Returns \emph{x} invisibly.
+#'
+#' @export
 plot.sensitivity <- function(x,
   type = c("path", "masking"), ...) {
 
@@ -29,6 +51,7 @@ plot.sensitivity <- function(x,
   }
 }
 
+#' @noRd
 .plot_masking <- function(x) {
 
   masking <- vector("numeric", nrow(x$influence))
@@ -46,6 +69,7 @@ plot.sensitivity <- function(x,
   invisible(x)
 }
 
+#' @noRd
 .plot_path <- function(x, n = 0L, threshold = qnorm(.975)) {
 
   z <- init(x)

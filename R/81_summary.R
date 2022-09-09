@@ -1,4 +1,14 @@
 
+#' Summary method for sensitivity objects
+#'
+#' @param x A \code{sensitivity} object, obtained from \code{\link{sens}}.
+#' @param n Optional character vector with a maximum of removals.
+#' @param threshold Optional numerical vector with influence thresholds.
+#' @param ... Not used.
+#'
+#' @return Returns a list with summary results.
+#'
+#' @export
 summary.sensitivity <- function(x, n = 0, threshold = qnorm(.975), ...) {
 
   n <- min(x$influence$N[1L], if(isTRUE(n <= 0)) Inf else n)

@@ -1,4 +1,20 @@
 
+#' Options for influence calculation
+#'
+#' @param ... Dispatched internally to \code{\link{set_compute}}.
+#' @param p_max,n_max Numeric scalar with the maximum percentage / number of
+#' removals to consider.
+#' @param sm_re Integer scalar with the number of steps until inverses are
+#' recalculated exactly (instead of using the Sherman-Morrison update).
+#' @param fwl Optional integer scalar with the position of variables to
+#' marginalise out.
+#' @param fwl_re Optional integer scalar with the steps until variables are
+#' marginalised out again.
+#' @param adaptive Logical scalar setting adaptive set identificaiton.
+#'
+#' @return Returns a list with options.
+#'
+#' @export
 set_options <- function(...,
   p_max = NULL, n_max = NULL,
   sm_re = 1L, fwl = 0L, fwl_re = 1L,
@@ -30,6 +46,16 @@ set_options <- function(...,
   return(out)
 }
 
+
+#' Options for influence computation
+#'
+#' @param x Character scalar with short-hand options.
+#' @param hat,beta,sigma,se,tstat,cooksd,dffits,rstudent,covration,cluster
+#' Logical scalars determining which quantities to compute (exactly).
+#'
+#' @return Returns a list with options.
+#'
+#' @export
 
 set_compute <- function(x = c("some", "none", "all"),
   hat, beta, sigma, se, tstat, cooksd, dffits, rstudent, covratio, cluster) {

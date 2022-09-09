@@ -1,9 +1,14 @@
 
-# Provide methods for `lm`, `ivreg`, and `influence` objects -----
-
+#' Methods to compute sensitivity with `lm`, `ivreg`, and `influence` objects
+#'
+#' @param ... Options dispatched internally.
+#'
+#' @return Returns a \code{sensitivitiy} object.
+#'
+#' @export
 sens <- function(x, ...) {{UseMethod("sens", x)}}
 
-
+#' @noRd
 sens.lm <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = NULL, verbose = TRUE) {
@@ -12,6 +17,7 @@ sens.lm <- function(x,
     cluster = cluster, verbose = verbose)
 }
 
+#' @noRd
 sens.ivreg <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = NULL, verbose = TRUE) {
@@ -25,6 +31,7 @@ sens.ivreg <- function(x,
   }
 }
 
+#' @noRd
 sens.influence <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = x$model$cluster, verbose = TRUE) {

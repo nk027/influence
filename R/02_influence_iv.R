@@ -1,4 +1,5 @@
 
+#' @noRd
 influence_iv <- function(x,
   rm = NULL, options, cluster = NULL) {
 

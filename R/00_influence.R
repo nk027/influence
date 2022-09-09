@@ -1,9 +1,14 @@
 
-# Provide methods for `lm`, `ivreg`, and `matrix` objects -----
-
+#' Methods to compute influence for `lm`, `ivreg`, and `matrix` objects
+#'
+#' @param ... Options dispatched internally.
+#'
+#' @return Returns a \code{influence} object.
+#'
+#' @export
 infl <- function(x, ...) {{UseMethod("infl", x)}}
 
-
+#' @noRd
 infl.matrix <- function(x, y, z,
   rm = NULL, options = set_compute(), cluster = NULL) {
 
@@ -16,12 +21,14 @@ infl.matrix <- function(x, y, z,
   }
 }
 
+#' @noRd
 infl.lm <- function(x,
   rm = NULL, options = set_compute(), cluster = NULL) {
 
   influence_lm(x, rm = rm, options = options, cluster = cluster)
 }
 
+#' @noRd
 infl.ivreg <- function(x,
   rm = NULL, options = set_compute(), cluster = NULL) {
 

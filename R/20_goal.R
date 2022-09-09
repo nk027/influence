@@ -1,6 +1,14 @@
 
+#' Methods to achieve a target sensitivity
+#'
+#' @param ... Options dispatched internally.
+#'
+#' @return Returns a \code{goal} object.
+#'
+#' @export
 goal <- function(x, ...) {{UseMethod("goal", x)}}
 
+#' @noRd
 goal.default <- function(x,
   lambda = set_lambda(),
   target = set_target(), n_upper = NULL, n_lower = 0L,
@@ -24,6 +32,7 @@ goal.default <- function(x,
 #     n_upper = n_upper, n_lower = n_lower)
 # }
 
+#' @noRd
 goal.influence <- function(x,
   lambda = set_lambda(), target = set_target(),
   n_upper = NULL, n_lower = 0L) {
@@ -33,6 +42,7 @@ goal.influence <- function(x,
 }
 
 
+#' @noRd
 compute_goal <- function(x,
   lambda = set_lambda(), target = set_target(),
   n_upper = NULL, n_lower = 0L) {

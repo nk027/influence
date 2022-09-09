@@ -1,4 +1,5 @@
 
+#' @noRd
 influence_lm <- function(x,
   rm = NULL, options, cluster = NULL, XX_inv = NULL) {
 

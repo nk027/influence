@@ -1,6 +1,14 @@
 
+#' Methods to compute an initial approximation of influence
+#'
+#' @param ... Options dispatched internally.
+#'
+#' @return Returns a \code{initial} object.
+#'
+#' @export
 init <- function(x, ...) {{UseMethod("init", x)}}
 
+#' @noRd
 init.default <- function(x,
   lambda = set_lambda(), start = NULL,
   options = set_compute(), cluster = NULL) {
@@ -24,6 +32,7 @@ init.default <- function(x,
 #   init.influence(x, lambda = lambda, start = start)
 # }
 
+#' @noRd
 init.influence <- function(x, lambda = set_lambda(), start = NULL) {
 
   rank <- rank_influence(x, lambda = lambda)
@@ -32,12 +41,14 @@ init.influence <- function(x, lambda = set_lambda(), start = NULL) {
   compute_initial(out, start = start)
 }
 
+#' @noRd
 init.sensitivity <- function(x, start = NULL) {
 
   compute_initial(x, start = start)
 }
 
 
+#' @noRd
 compute_initial <- function(x, start = NULL) {
 
   lambda_id <- check_id(NULL, lambda = x$meta$lambda)

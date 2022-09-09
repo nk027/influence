@@ -1,4 +1,5 @@
 
+#' @noRd
 sensitivity_iv <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = NULL, verbose = TRUE) {

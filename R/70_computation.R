@@ -1,5 +1,7 @@
 
-# Update inverse
+#' 1-rank update for an inverse
+#'
+#' @noRd
 update_inv <- function(XX_inv, X_rm) {
 
   if(NROW(X_rm) == 1) {
@@ -16,19 +18,25 @@ update_inv <- function(XX_inv, X_rm) {
   return(out)
 }
 
-# Update crossproduct
+#' 1-rank update for a crossproduct
+#'
+#' @noRd
 update_cp <- function(XY, X_rm, Y_rm = X_rm) {
   XY - crossprod(X_rm, Y_rm)
 }
 
 
-# Solve using an upper triangular matrix
+#' Solve using an upper triangular matrix
+#'
+#' @noRd
 solve_cholesky <- function(R, b) {
   backsolve(R, forwardsolve(R, b, upper.tri = TRUE, transpose = TRUE))
 }
 
 
-# Marginalise using Frisch-Waugh-Lovell theorem
+#' Marginalise using Frisch-Waugh-Lovell theorem
+#'
+#' @noRd
 update_fwl <- function(X, y, variables, rm = NULL) {
   if(!any(variables == 0)) {
     if(is.null(rm)) {
@@ -48,7 +56,9 @@ update_fwl <- function(X, y, variables, rm = NULL) {
 }
 
 
-# Adaptation of sandwich::meatCL
+#' Adaptation of sandwich::meatCL to calculate clustered and robust errors
+#'
+#' @noRd
 veggiesCL <- function(residual, X,
   cluster = NULL,
   type = c("HC0", "HC1"), # ll and LM
