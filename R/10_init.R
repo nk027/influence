@@ -1,27 +1,28 @@
 
 init <- function(x, ...) {{UseMethod("init", x)}}
 
-init.lm <- function(x,
+init.default <- function(x,
   lambda = set_lambda(), start = NULL,
   options = set_compute(), cluster = NULL) {
 
   # Cluster for clustered standard errors
-  cluster <- check_cluster(cluster, x$rank + x$df.resid)
+  n <- if(!is.null(x$n)) x$n else x$rank + x$df.resid
+  cluster <- check_cluster(cluster, n)
 
-  x <- infl.lm(x, options = options, cluster = cluster)
-  init.influence(x, lambda = lambda, start = start)
+  x <- infl(x, options = options, cluster = cluster)
+  init(x, lambda = lambda, start = start)
 }
 
-init.ivreg <- function(x,
-  lambda = set_lambda(), start = NULL,
-  options = set_compute(), cluster = NULL) {
+# init.ivreg <- function(x,
+#   lambda = set_lambda(), start = NULL,
+#   options = set_compute(), cluster = NULL) {
 
-  # Cluster for clustered standard errors
-  cluster <- check_cluster(cluster, x$n)
+#   # Cluster for clustered standard errors
+#   cluster <- check_cluster(cluster, x$n)
 
-  x <- infl.ivreg(x, options = options, cluster = cluster)
-  init.influence(x, lambda = lambda, start = start)
-}
+#   x <- infl.ivreg(x, options = options, cluster = cluster)
+#   init.influence(x, lambda = lambda, start = start)
+# }
 
 init.influence <- function(x, lambda = set_lambda(), start = NULL) {
 

@@ -1,23 +1,28 @@
 
 goal <- function(x, ...) {{UseMethod("goal", x)}}
 
-goal.lm <- function(x,
-  lambda = set_lambda(), target = set_target(),
-  n_upper = NULL, n_lower = 0L, options = set_compute(), cluster = NULL) {
+goal.default <- function(x,
+  lambda = set_lambda(),
+  target = set_target(), n_upper = NULL, n_lower = 0L,
+  options = set_compute(), cluster = NULL) {
 
-  x <- infl.lm(x, options = options, cluster = cluster)
-  goal.influence(x, lambda = lambda, target = target,
+  # Cluster for clustered standard errors
+  N <- if(!is.null(x$n)) x$n else x$rank + x$df.resid
+  cluster <- check_cluster(cluster, N)
+
+  x <- infl(x, options = options, cluster = cluster)
+  goal(x, lambda = lambda, target = target,
     n_upper = n_upper, n_lower = n_lower)
 }
 
-goal.ivreg <- function(x,
-  lambda = set_lambda(), target = set_target(),
-  n_upper = NULL, n_lower = 0L, options = set_compute(), cluster = NULL) {
+# goal.ivreg <- function(x,
+#   lambda = set_lambda(), target = set_target(),
+#   n_upper = NULL, n_lower = 0L, options = set_compute(), cluster = NULL) {
 
-  x <- infl.ivreg(x, options = options, cluster = cluster)
-  goal.influence(x, lambda = lambda, target = target,
-    n_upper = n_upper, n_lower = n_lower)
-}
+#   x <- infl.ivreg(x, options = options, cluster = cluster)
+#   goal.influence(x, lambda = lambda, target = target,
+#     n_upper = n_upper, n_lower = n_lower)
+# }
 
 goal.influence <- function(x,
   lambda = set_lambda(), target = set_target(),

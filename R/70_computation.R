@@ -28,7 +28,7 @@ solve_cholesky <- function(R, b) {
 }
 
 
-# Update data using Frisch-Waugh-Lovell theorem
+# Marginalise using Frisch-Waugh-Lovell theorem
 update_fwl <- function(X, y, variables, rm = NULL) {
   if(!any(variables == 0)) {
     if(is.null(rm)) {
@@ -47,12 +47,6 @@ update_fwl <- function(X, y, variables, rm = NULL) {
   return(list("y" = y, "X" = X))
 }
 
-
-rank_influence <- function(x, lambda) {
-  value <- lambda(x)
-  order <- order(value, decreasing = FALSE, method = "radix")
-  cbind("value" = value, "order" = order)
-}
 
 # Adaptation of sandwich::meatCL
 veggiesCL <- function(residual, X,

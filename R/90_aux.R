@@ -159,3 +159,13 @@ re_infl <- function(x, rm) {
   }
   return(re)
 }
+
+
+#' Rank values using the given lambda
+#'
+#' @noRd
+rank_influence <- function(x, lambda) {
+  value <- lambda(x)
+  order <- order(value, decreasing = FALSE, method = "radix")
+  cbind("value" = value, "order" = order)
+}
