@@ -14,10 +14,10 @@ set_lambda <- function(
     "cooksd", "dffits", "rstudent", "covratio", "BKW"),
   position = 1L,
   sign = 1L,
-  f = function(x, ...) {NULL}) {
+  f = NULL) {
 
   # Check custom functions
-  if(!is.null(f())) {
+  if(!is.null(f)) {
     attr(f, "type") <- "custom"
     return(f)
   }

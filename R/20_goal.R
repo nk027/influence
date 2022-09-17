@@ -11,8 +11,11 @@ goal <- function(x, ...) {{UseMethod("goal", x)}}
 #' @noRd
 goal.default <- function(x,
   lambda = set_lambda(),
-  target = set_target(), n_upper = NULL, n_lower = 0L,
+  target = set_target(), n_upper = NULL, n_lower = 1L,
   options = set_compute(), cluster = NULL) {
+
+  # Still buggy
+  warning("This method is still very buggy.")
 
   # Cluster for clustered standard errors
   N <- if(!is.null(x$n)) x$n else x$rank + x$df.resid
@@ -35,7 +38,7 @@ goal.default <- function(x,
 #' @noRd
 goal.influence <- function(x,
   lambda = set_lambda(), target = set_target(),
-  n_upper = NULL, n_lower = 0L) {
+  n_upper = NULL, n_lower = 1L) {
 
   compute_goal(x, lambda = lambda, target = target,
     n_upper = n_upper, n_lower = n_lower)
@@ -45,7 +48,7 @@ goal.influence <- function(x,
 #' @noRd
 compute_goal <- function(x,
   lambda = set_lambda(), target = set_target(),
-  n_upper = NULL, n_lower = 0L) {
+  n_upper = NULL, n_lower = 1L) {
 
   value <- attr(target, "target")
   N <- NROW(x$hat)
