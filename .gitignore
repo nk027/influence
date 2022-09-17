@@ -1,2 +1,6 @@
 test.R
-paper/*
+paper/depr/*
+paper/data/*
+paper/output/*
+paper/*rds
+paper/*rda
