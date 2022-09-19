@@ -194,6 +194,13 @@ kableExtra::kbl(tbl, format = "latex", booktabs = TRUE, align = "lrrrr",
 
 
 # Plot marginalised instrument ----
+sens_num <- sens.lm(mdl_base_f,
+  lambda = set_lambda("custom", f = function(x, ...) {abs(x[["tstat_i"]][, 2])}),
+  options = set_options(n_max = 80L, tstat = TRUE, cluster = TRUE),
+  cluster = seq_along(resid(mdl_base_f)))
+
+data <- get_data.ivreg(mdl_base)
+rm <- sens_num$influence$id[seq(18)]
 d_fwl <- update_fwl(data$Z, data$X[, 2], 2)
 r_fwl <- update_fwl(data$Z[-rm, ], data$X[-rm, 2], 2)
 
