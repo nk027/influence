@@ -65,7 +65,7 @@ nt_ap <- sapply(approx_t, \(s) get_sm(s, threshold = qnorm(.975)))
 # To reproduce BGM, we also need to use their significance check ---
 nt2_ex <- sapply(mdls, approx_signif, approx = FALSE, threshold = qnorm(.975))
 nt2_ap <- sapply(mdls, approx_signif, approx = TRUE, threshold = qnorm(.975))
-# Interestingly, this approach overshoots, which balances out the underestimates
+# Interestingly, this appr7oach overshoots, which balances out the underestimates
 
 # Outputs -----
 
@@ -91,20 +91,37 @@ kableExtra::kbl(tbl, format = "latex", booktabs = TRUE, align = "llccccccc",
 
 
 # Plot the data and regression lines ---
-# cairo_pdf("paper/output/microcredit_data.pdf", height = 2.5, width = 6, pointsize = 8)
-png("paper/output/microcredit_data.png", height = 500, width = 1200, pointsize = 24)
-op <- par(mfrow = c(2, 4), mar = c(2, 4, 2, .5), bg = "white", family = "Noto Sans")
-for(j in seq_along(mdls)) {
+mode <- function(v) {uv <- unique(v); uv[which.max(tabulate(match(v, uv)))]}
+set.seed(42)
+cairo_pdf("paper/output/microcredit_data.pdf", height = 2, width = 4, pointsize = 8)
+op <- par(mfrow = c(1, 2), mar = c(2, 4, 2, .5), bg = "white", family = "Noto Sans")
+for(j in c("ETH", "MEX")) {
+  y_vals <- mdls[[j]]$y
+  x_vals <- mdls[[j]]$x[, 2]
   plot.new()
   plot.window(xlim = c(-.2, 1.2), ylim = range(mdls[[j]]$y) + c(-10, 10))
   abline(v = c(0, 1), col = "gray", lty = 3)
-  abline(h = c(min(mdls[[j]]$y), max(mdls[[j]]$y)), col = "gray", lty = 3)
-  points(mdls[[j]]$x[, 2] + rnorm(NROW(mdls[[j]]$x), 0, .05), mdls[[j]]$y, pch = 1, lwd = 2)
+  abline(h = range(y_vals), col = "gray", lty = 3)
+  id <- (y_vals - mode(y_vals))^2 > 10000 # We can sample close to the median
+  points(x_vals[id] + rnorm(sum(id), 0, .03), y_vals[id], pch = 1, lwd = 1)
+  # We don't to plot all the values close to the mode
+  points(x_vals[sample(which(!id), min(sum(!id), 100))] + rnorm(min(100, sum(!id)), 0, .03),
+    y_vals[sample(which(!id), min(sum(!id), 100))], pch = 1, lwd = 1)
+  # Indicate the mean and median -- they're basically invisible
+  # x_0 <- x_vals == 0
+  # segments(-.1, quantile(y_vals[x_0], .1), .1, col = "#00A0A0", lty = 2, lwd = 2)
+  # segments(-.1, quantile(y_vals[x_0], .5), .1, col = "#00A0A0", lty = 1, lwd = 3)
+  # segments(-.1, quantile(y_vals[x_0], .9), .1, col = "#00A0A0", lty = 2, lwd = 2)
+  # segments(-.1, mean(y_vals[x_0]), .1, col = "#A000A0", lty = 1, lwd = 3)
+  # x_1 <- x_vals == 1
+  # segments(.9, quantile(y_vals[x_1], .1), 1.1, col = "#00A0A0", lty = 2, lwd = 2)
+  # segments(.9, quantile(y_vals[x_1], .5), 1.1, col = "#00A0A0", lty = 1, lwd = 3)
+  # segments(.9, quantile(y_vals[x_1], .9), 1.1, col = "#00A0A0", lty = 2, lwd = 2)
+  # segments(.9, mean(y_vals[x_1]), 1.1, col = "#A000A0", lty = 1, lwd = 3)
   abline(mdls[[j]], col = "darkgray", lwd = 2)
   axis(1, at = c(0, 1))
   axis(2, at = round(c(min(mdls[[j]]$y), 0, max(mdls[[j]]$y)), 0),
-    labels = formatC(c(min(mdls[[j]]$y), 0, max(mdls[[j]]$y)),
-      big.mark = ",", format = "d"), las = 1)
-  title(main = names(x)[j], line = -1.5, font.main = 2, cex.main = 1.25, family = "Merriweather")
+    labels = round(c(min(mdls[[j]]$y), 0, max(mdls[[j]]$y)) / 1000, 1), las = 1)
+  title(main = j, line = 0, font.main = 2, cex.main = 1.5, family = "Merriweather")
 }
 dev.off()
