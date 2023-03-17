@@ -9,6 +9,7 @@
 sens <- function(x, ...) {{UseMethod("sens", x)}}
 
 #' @noRd
+#' @export
 sens.lm <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = NULL, verbose = TRUE) {
@@ -18,6 +19,7 @@ sens.lm <- function(x,
 }
 
 #' @noRd
+#' @export
 sens.ivreg <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = NULL, verbose = TRUE) {
@@ -32,6 +34,7 @@ sens.ivreg <- function(x,
 }
 
 #' @noRd
+#' @export
 sens.influence <- function(x,
   lambda = set_lambda(), options = set_options(),
   cluster = x$model$cluster, verbose = TRUE) {

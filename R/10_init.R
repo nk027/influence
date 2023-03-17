@@ -9,6 +9,7 @@
 init <- function(x, ...) {{UseMethod("init", x)}}
 
 #' @noRd
+#' @export
 init.default <- function(x,
   lambda = set_lambda(), start = NULL,
   options = set_compute(), cluster = NULL) {
@@ -33,6 +34,7 @@ init.default <- function(x,
 # }
 
 #' @noRd
+#' @export
 init.influence <- function(x, lambda = set_lambda(), start = NULL) {
 
   rank <- rank_influence(x, lambda = lambda)
@@ -42,6 +44,7 @@ init.influence <- function(x, lambda = set_lambda(), start = NULL) {
 }
 
 #' @noRd
+#' @export
 init.sensitivity <- function(x, start = NULL) {
 
   compute_initial(x, start = start)

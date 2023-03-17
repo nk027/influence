@@ -1,5 +1,6 @@
 
 #' @noRd
+#' @export
 print.influence <- function(x, ...) {
   cat("Influence object\n")
   print(str(x))
@@ -7,6 +8,7 @@ print.influence <- function(x, ...) {
 }
 
 #' @noRd
+#' @export
 print.init <- function(x, ...) {
   cat("Sensitivity object\n")
   print(str(x[c("influence", "model")]))
@@ -14,6 +16,7 @@ print.init <- function(x, ...) {
 }
 
 #' @noRd
+#' @export
 print.goal <- function(x, ...) {
   cat("Sensitivity object\n")
   print(str(x[c("influence", "model")]))
@@ -21,6 +24,7 @@ print.goal <- function(x, ...) {
 }
 
 #' @noRd
+#' @export
 print.sens <- function(x, ...) {
   cat("Sensitivity object\n")
   print(str(x[c("influence", "model")]))

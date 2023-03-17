@@ -56,7 +56,6 @@ set_options <- function(...,
 #' @return Returns a list with options.
 #'
 #' @export
-
 set_compute <- function(x = c("some", "none", "all"),
   hat, beta, sigma, se, tstat, cooksd, dffits, rstudent, covratio, cluster) {
 

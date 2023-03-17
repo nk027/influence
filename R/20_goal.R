@@ -9,6 +9,7 @@
 goal <- function(x, ...) {{UseMethod("goal", x)}}
 
 #' @noRd
+#' @export
 goal.default <- function(x,
   lambda = set_lambda(),
   target = set_target(), n_upper = NULL, n_lower = 1L,
@@ -36,6 +37,7 @@ goal.default <- function(x,
 # }
 
 #' @noRd
+#' @export
 goal.influence <- function(x,
   lambda = set_lambda(), target = set_target(),
   n_upper = NULL, n_lower = 1L) {
@@ -46,6 +48,7 @@ goal.influence <- function(x,
 
 
 #' @noRd
+#' @export
 compute_goal <- function(x,
   lambda = set_lambda(), target = set_target(),
   n_upper = NULL, n_lower = 1L) {

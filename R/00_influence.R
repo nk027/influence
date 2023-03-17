@@ -22,6 +22,7 @@ infl.matrix <- function(x, y, z,
 }
 
 #' @noRd
+#' @export
 infl.lm <- function(x,
   rm = NULL, options = set_compute(), cluster = NULL) {
 
@@ -29,6 +30,7 @@ infl.lm <- function(x,
 }
 
 #' @noRd
+#' @export
 infl.ivreg <- function(x,
   rm = NULL, options = set_compute(), cluster = NULL) {
 
