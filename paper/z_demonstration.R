@@ -3,9 +3,9 @@ devtools::install_github("nk027/influence") # Install from GitHub
 library("influence") # Load the package
 
 # 1. reproduce the toy example -----
-set.seed(42) # Simulate some random (seeded) data ---
+set.seed(0463) # Simulate some random (seeded) data ---
 N <- 54 # We'll add 3 and 3 outliers to the end
-x <- c(rnorm(N), rnorm(3, 6, 0.25), rnorm(3, 8, 0.1))
+x <- c(rnorm(N), rnorm(3, 6, 0.25), rnorm(3, 8, 0.25))
 y <- c( # The outliers differ in effect
   x[seq(N)] * -0.5 + rnorm(N, 0, 1),
   x[seq(N + 1, N + 3)] * 0.1 + rnorm(3, 0, 0.1),
