@@ -19,7 +19,6 @@ mdl_sens$influence$id[1:7] # Adaptive results
 mdl_sens$initial$id[1:7] # Initial approximation
 
 # 2. reproduce the ruggedness application -----
-path <-
 data <- read.csv("https://short.wu.ac.at/rugged_data") # Read from GitHub
 data$diamonds <- with(data, gemstones / (land_area / 100))
 data <- data[!is.na(data$rgdppc_2000), ] # Remove NAs beforehand
